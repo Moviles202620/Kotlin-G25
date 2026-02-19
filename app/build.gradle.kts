@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.goatly"
+    namespace = "com.goatly.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.goatly"
+        applicationId = "com.goatly.app"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

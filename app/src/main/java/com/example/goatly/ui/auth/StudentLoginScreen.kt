@@ -18,9 +18,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goatly.ui.theme.AppColors
-import kotlinx.coroutines.launch
 
 @Composable
 fun StudentLoginScreen(
@@ -31,7 +31,15 @@ fun StudentLoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+
+    val isLoading by authViewModel.isLoading.collectAsStateWithLifecycle()
+    val loginError by authViewModel.loginError.collectAsStateWithLifecycle()
+
+    LaunchedEffect(loginError) {
+        if (loginError != null) {
+            snackbarHostState.showSnackbar(loginError!!)
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -44,7 +52,6 @@ fun StudentLoginScreen(
             ) {
                 Spacer(Modifier.height(30.dp))
 
-                // Logo "Goatly •"
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Goatly", fontSize = 34.sp, fontWeight = FontWeight.W800, color = AppColors.DarkText)
                     Spacer(Modifier.width(6.dp))
@@ -53,7 +60,6 @@ fun StudentLoginScreen(
 
                 Spacer(Modifier.height(26.dp))
 
-                // Card
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -68,29 +74,50 @@ fun StudentLoginScreen(
 
                         Text("Correo institucional", fontSize = 16.sp, fontWeight = FontWeight.W700)
                         Spacer(Modifier.height(10.dp))
-                        GoatlyTextField(value = email, onValueChange = { email = it }, placeholder = "nombre@uniandes.edu.co", keyboardType = KeyboardType.Email)
+                        GoatlyTextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            placeholder = "nombre@uniandes.edu.co",
+                            keyboardType = KeyboardType.Email
+                        )
 
                         Spacer(Modifier.height(18.dp))
                         Text("Contraseña", fontSize = 16.sp, fontWeight = FontWeight.W700)
                         Spacer(Modifier.height(10.dp))
-                        GoatlyTextField(value = password, onValueChange = { password = it }, placeholder = "••••••••", isPassword = true)
+                        GoatlyTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            placeholder = "••••••••",
+                            isPassword = true
+                        )
 
                         Spacer(Modifier.height(18.dp))
 
                         Button(
                             onClick = {
-                                val ok = authViewModel.login(
-                                    email = email.ifBlank { "nombre@uniandes.edu.co" },
-                                    password = password.ifBlank { "1234" }
+                                authViewModel.login(
+                                    email = email.trim(),
+                                    password = password,
+                                    onSuccess = onLoginSuccess
                                 )
-                                if (ok) onLoginSuccess()
-                                else scope.launch { snackbarHostState.showSnackbar("Credenciales inválidas (debe ser @uniandes.edu.co)") }
                             },
+                            enabled = !isLoading,
                             modifier = Modifier.fillMaxWidth().height(56.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.DarkText, contentColor = AppColors.PrimaryYellow),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppColors.DarkText,
+                                contentColor = AppColors.PrimaryYellow
+                            ),
                             shape = RoundedCornerShape(28.dp)
                         ) {
-                            Text("Ingresar", fontSize = 20.sp, fontWeight = FontWeight.W800)
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = AppColors.PrimaryYellow,
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Ingresar", fontSize = 20.sp, fontWeight = FontWeight.W800)
+                            }
                         }
 
                         Spacer(Modifier.height(18.dp))
@@ -104,7 +131,6 @@ fun StudentLoginScreen(
 
                 Spacer(Modifier.height(18.dp))
 
-                // Ir a registro
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("¿No tienes cuenta? ", color = AppColors.GreyText)
                     TextButton(onClick = onGoToRegister, contentPadding = PaddingValues(0.dp)) {

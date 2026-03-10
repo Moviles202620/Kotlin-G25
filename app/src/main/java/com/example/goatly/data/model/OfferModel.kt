@@ -9,5 +9,7 @@ data class OfferModel(
     val valueCop: Int,
     val dateTime: Date,
     val durationHours: Int,
-    val isOnSite: Boolean
+    val isOnSite: Boolean,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )

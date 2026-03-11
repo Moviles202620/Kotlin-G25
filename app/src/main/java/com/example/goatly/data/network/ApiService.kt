@@ -38,6 +38,13 @@ data class OfferResponse(
     val longitude: Double?
 )
 
+data class RegisterRequest(
+    val name: String,
+    val email: String,
+    val password: String,
+    val department: String
+)
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 interface ApiService {
@@ -50,4 +57,7 @@ interface ApiService {
 
     @GET("offers/my")
     suspend fun getOffers(@Header("Authorization") token: String): List<OfferResponse>
+
+    @POST("auth/register")
+    suspend fun register(@Body request: RegisterRequest): LoginResponse
 }

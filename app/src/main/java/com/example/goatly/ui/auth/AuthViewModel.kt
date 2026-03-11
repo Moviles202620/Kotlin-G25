@@ -44,4 +44,19 @@ class AuthViewModel(
         authRepository.logout()
         _user.value = null
     }
+
+    fun register(name: String, email: String, password: String, major: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _loginError.value = null
+            val result = authRepository.registerSuspend(name, email, password, major)
+            if (result != null) {
+                _user.value = result
+                onSuccess()
+            } else {
+                _loginError.value = "No se pudo crear la cuenta. Intenta de nuevo."
+            }
+            _isLoading.value = false
+        }
+    }
 }

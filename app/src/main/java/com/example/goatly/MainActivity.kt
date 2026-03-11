@@ -50,7 +50,8 @@ fun GoatlyStudentApp(authViewModel: AuthViewModel) {
                     navController.navigate(Routes.SHELL) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
-                }
+                },
+                viewModel = authViewModel
             )
         }
 

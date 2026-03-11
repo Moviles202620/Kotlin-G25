@@ -3,6 +3,7 @@ package com.example.goatly.data.repository
 import com.example.goatly.data.model.UserModel
 import com.example.goatly.data.network.ApiService
 import com.example.goatly.data.network.LoginRequest
+import com.example.goatly.data.network.RegisterRequest
 import com.example.goatly.data.network.TokenManager
 
 class ApiAuthRepository(private val api: ApiService) : AuthRepository {
@@ -36,6 +37,30 @@ class ApiAuthRepository(private val api: ApiService) : AuthRepository {
                 )
                 _currentUser
             } else null
+        }
+    }
+
+    suspend fun registerSuspend(name: String, email: String, password: String, major: String): UserModel? {
+        return try {
+            val response = api.register(
+                RegisterRequest(
+                    name = name.trim(),
+                    email = email.trim().lowercase(),
+                    password = password,
+                    department = major
+                )
+            )
+            TokenManager.saveTokens(response.accessToken, response.refreshToken)
+            val me = api.getMe("Bearer ${response.accessToken}")
+            _currentUser = UserModel(
+                name = me.name,
+                email = me.email,
+                major = me.department,
+                university = "Universidad de los Andes",
+            )
+            _currentUser
+        } catch (e: Exception) {
+            null
         }
     }
 

@@ -20,6 +20,7 @@ data class UserResponse(
     val name: String,
     val email: String,
     val department: String,
+    val role: String,
     val language: String,
     @Json(name = "is_dark_mode") val isDarkMode: Boolean
 )
@@ -42,7 +43,8 @@ data class RegisterRequest(
     val name: String,
     val email: String,
     val password: String,
-    val department: String
+    val department: String,
+    val role: String = "student"
 )
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────

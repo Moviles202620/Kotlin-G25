@@ -5,6 +5,7 @@ import com.example.goatly.data.network.ApiService
 import com.example.goatly.data.network.LoginRequest
 import com.example.goatly.data.network.RegisterRequest
 import com.example.goatly.data.network.TokenManager
+import retrofit2.HttpException
 
 class ApiAuthRepository(private val api: ApiService) : AuthRepository {
 
@@ -33,6 +34,7 @@ class ApiAuthRepository(private val api: ApiService) : AuthRepository {
             _currentUser
         } catch (e: Exception) {
             if (e.message == "STAFF_ROLE") throw e
+            if (e is HttpException && e.code() == 401) return null
             if (email.trim().lowercase().endsWith("@uniandes.edu.co") && password.length >= 4) {
                 _currentUser = UserModel(
                     name = "Estudiante Uniandes",

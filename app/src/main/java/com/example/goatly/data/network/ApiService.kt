@@ -1,20 +1,37 @@
 package com.example.goatly.data.network
 
 import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.PUT
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
+@JsonClass(generateAdapter = true)
 data class LoginRequest(val email: String, val password: String)
 
-data class LoginResponse(
-    @Json(name = "access_token") val accessToken: String,
-    @Json(name = "refresh_token") val refreshToken: String
+@JsonClass(generateAdapter = true)
+data class LoginUserData(
+    val id: Int,
+    val name: String,
+    val email: String,
+    val department: String,
+    val role: String,
+    val language: String,
+    @field:Json(name = "is_dark_mode") val isDarkMode: Boolean
 )
 
+@JsonClass(generateAdapter = true)
+data class LoginResponse(
+    @field:Json(name = "access_token") val accessToken: String,
+    @field:Json(name = "refresh_token") val refreshToken: String,
+    val user: LoginUserData
+)
+
+@JsonClass(generateAdapter = true)
 data class UserResponse(
     val id: Int,
     val name: String,
@@ -22,23 +39,25 @@ data class UserResponse(
     val department: String,
     val role: String,
     val language: String,
-    @Json(name = "is_dark_mode") val isDarkMode: Boolean
+    @field:Json(name = "is_dark_mode") val isDarkMode: Boolean
 )
 
+@JsonClass(generateAdapter = true)
 data class OfferResponse(
     val id: Int,
-    @Json(name = "staff_id") val staffId: Int,
+    @field:Json(name = "staff_id") val staffId: Int,
     val title: String,
     val description: String,
     val category: String?,
-    @Json(name = "value_cop") val valueCop: Int,
-    @Json(name = "duration_hours") val durationHours: Int,
-    @Json(name = "is_on_site") val isOnSite: Boolean,
-    @Json(name = "date_time") val dateTime: String,
+    @field:Json(name = "value_cop") val valueCop: Int,
+    @field:Json(name = "duration_hours") val durationHours: Int,
+    @field:Json(name = "is_on_site") val isOnSite: Boolean,
+    @field:Json(name = "date_time") val dateTime: String,
     val latitude: Double?,
     val longitude: Double?
 )
 
+@JsonClass(generateAdapter = true)
 data class RegisterRequest(
     val name: String,
     val email: String,
@@ -46,6 +65,24 @@ data class RegisterRequest(
     val department: String,
     val role: String = "student"
 )
+
+@JsonClass(generateAdapter = true)
+data class UpdateProfileRequest(
+    val name: String,
+    val department: String,
+    val language: String,
+    @field:Json(name = "is_dark_mode") val isDarkMode: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class ChangePasswordRequest(
+    @field:Json(name = "current_password") val currentPassword: String,
+    @field:Json(name = "new_password") val newPassword: String,
+    @field:Json(name = "confirm_password") val confirmPassword: String
+)
+
+@JsonClass(generateAdapter = true)
+data class ChangePasswordResponse(val detail: String)
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
@@ -62,4 +99,16 @@ interface ApiService {
 
     @POST("auth/register")
     suspend fun register(@Body request: RegisterRequest): LoginResponse
+
+    @PUT("users/me")
+    suspend fun updateProfile(
+        @Header("Authorization") token: String,
+        @Body request: UpdateProfileRequest
+    ): UserResponse
+
+    @PUT("users/change-password")
+    suspend fun changePassword(
+        @Header("Authorization") token: String,
+        @Body request: ChangePasswordRequest
+    ): ChangePasswordResponse
 }

@@ -16,35 +16,27 @@ class ApiAuthRepository(private val api: ApiService) : AuthRepository {
     }
 
     suspend fun loginSuspend(email: String, password: String): UserModel? {
+        val normalizedEmail = email.trim().lowercase()
         return try {
-            val response = api.login(LoginRequest(email.trim().lowercase(), password))
+            val response = api.login(LoginRequest(normalizedEmail, password))
             TokenManager.saveTokens(response.accessToken, response.refreshToken)
-            val me = api.getMe("Bearer ${response.accessToken}")
-            if (me.role == "staff") {
-                _currentUser = null
-                throw Exception("STAFF_ROLE")
-            }
+            val me = response.user
+            if (me.role == "staff") throw Exception("STAFF_ROLE")
             _currentUser = UserModel(
                 name = me.name,
                 email = me.email,
                 major = me.department,
                 role = me.role,
                 university = "Universidad de los Andes",
+                language = me.language,
+                isDarkMode = me.isDarkMode,
             )
             _currentUser
         } catch (e: Exception) {
             if (e.message == "STAFF_ROLE") throw e
             if (e is HttpException && e.code() == 401) return null
-            if (email.trim().lowercase().endsWith("@uniandes.edu.co") && password.length >= 4) {
-                _currentUser = UserModel(
-                    name = "Estudiante Uniandes",
-                    email = email.trim().lowercase(),
-                    major = "Ingeniería de Sistemas",
-                    role = "student",
-                    university = "Universidad de los Andes",
-                )
-                _currentUser
-            } else null
+            android.util.Log.e("GoatlyNet", "LOGIN: FAILED: ${e::class.simpleName}: ${e.message}", e)
+            null
         }
     }
 
@@ -60,16 +52,19 @@ class ApiAuthRepository(private val api: ApiService) : AuthRepository {
                 )
             )
             TokenManager.saveTokens(response.accessToken, response.refreshToken)
-            val me = api.getMe("Bearer ${response.accessToken}")
+            val me = response.user
             _currentUser = UserModel(
                 name = me.name,
                 email = me.email,
                 major = me.department,
                 role = me.role,
                 university = "Universidad de los Andes",
+                language = me.language,
+                isDarkMode = me.isDarkMode,
             )
             _currentUser
         } catch (e: Exception) {
+            android.util.Log.e("GoatlyNet", "REGISTER: FAILED: ${e::class.simpleName}: ${e.message}", e)
             null
         }
     }

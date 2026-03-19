@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goatly.ui.applications.ApplicationsViewModel
+import com.example.goatly.ui.applications.ApplicationsViewModel.UiState
 import com.example.goatly.ui.theme.AppColors
 
 @Composable
@@ -29,10 +30,9 @@ fun StudentProfileScreen(
     onLogout: () -> Unit
 ) {
     LaunchedEffect(Unit) {
-        appsViewModel.refresh()
         profileViewModel.loadProfile()
     }
-    val items by appsViewModel.items.collectAsState()
+    val appsUiState by appsViewModel.uiState.collectAsState()
     val user by profileViewModel.user.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val error by profileViewModel.error.collectAsState()
@@ -49,9 +49,10 @@ fun StudentProfileScreen(
     val userMajor = user?.department?.takeIf { it.isNotBlank() }
     val userLanguage = user?.language
     val initials = userName?.split(" ")?.take(2)?.joinToString("") { it.first().uppercase() } ?: "EU"
-    val accepted = items.count { it.statusType == ApplicationsViewModel.StatusType.ACCEPTED }
-    val pending = items.count { it.statusType == ApplicationsViewModel.StatusType.PENDING }
-    val total = items.size
+    val stats = (appsUiState as? UiState.Success)?.response?.stats
+    val accepted = stats?.accepted ?: 0
+    val pending = stats?.pending ?: 0
+    val total = stats?.total ?: 0
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

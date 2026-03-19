@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.goatly.ui.applications.ApplicationDetailScreen
+import com.example.goatly.ui.applications.ApplicationsViewModel
 import com.example.goatly.ui.auth.AuthViewModel
 import com.example.goatly.ui.auth.StudentLoginScreen
 import com.example.goatly.ui.auth.StudentRegisterScreen
@@ -23,15 +25,20 @@ import com.example.goatly.ui.theme.GoatlyTheme
 class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
+    private val appsViewModel: ApplicationsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { GoatlyTheme { GoatlyStudentApp(authViewModel, profileViewModel) } }
+        setContent { GoatlyTheme { GoatlyStudentApp(authViewModel, profileViewModel, appsViewModel) } }
     }
 }
 
 @Composable
-fun GoatlyStudentApp(authViewModel: AuthViewModel, profileViewModel: ProfileViewModel) {
+fun GoatlyStudentApp(
+    authViewModel: AuthViewModel,
+    profileViewModel: ProfileViewModel,
+    appsViewModel: ApplicationsViewModel
+) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
@@ -69,7 +76,11 @@ fun GoatlyStudentApp(authViewModel: AuthViewModel, profileViewModel: ProfileView
         composable(Routes.SHELL) {
             StudentShell(
                 profileViewModel = profileViewModel,
+                appsViewModel = appsViewModel,
                 onNavigateToOfferDetail = { offerId -> navController.navigate(Routes.offerDetail(offerId)) },
+                onNavigateToApplicationDetail = { appId ->
+                    navController.navigate(Routes.applicationDetail(appId))
+                },
                 onEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
                 onLogout = {
@@ -107,6 +118,13 @@ fun GoatlyStudentApp(authViewModel: AuthViewModel, profileViewModel: ProfileView
         composable(Routes.CHANGE_PASSWORD) {
             ChangePasswordScreen(
                 profileViewModel = profileViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.APPLICATION_DETAIL) {
+            ApplicationDetailScreen(
+                appsViewModel = appsViewModel,
                 onBack = { navController.popBackStack() }
             )
         }

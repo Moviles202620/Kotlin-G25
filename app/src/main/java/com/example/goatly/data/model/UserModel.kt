@@ -5,5 +5,7 @@ data class UserModel(
     val major: String,
     val university: String,
     val semester: Int = 0,
-    val role: String = "student"
+    val role: String = "student",
+    val language: String = "es",
+    val isDarkMode: Boolean = false
 )

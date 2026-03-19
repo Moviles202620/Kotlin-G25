@@ -2,6 +2,8 @@ package com.example.goatly.ui.home
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toDrawable
 import android.graphics.Canvas
 import android.graphics.Paint
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,7 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
@@ -65,7 +67,7 @@ fun OfferDetailScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Detalle de oferta", fontWeight = FontWeight.W800) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Volver") } },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Surface)
             )
         },
@@ -171,7 +173,7 @@ fun OfferDetailScreen(
 
 fun createColoredMarkerBitmap(color: Int): Bitmap {
     val size = 60
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val bitmap = createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint().apply {
         this.color = color
@@ -210,16 +212,13 @@ fun OsmMapView(
         },
         update = { mapView ->
             if (userLatitude != null && userLongitude != null) {
-                mapView.overlays.removeAll { it is Marker && (it as Marker).title == "Tu ubicación" }
+                mapView.overlays.removeAll { it is Marker && it.title == "Tu ubicación" }
 
                 val userMarker = Marker(mapView)
                 userMarker.position = GeoPoint(userLatitude, userLongitude)
                 userMarker.title = "Tu ubicación"
                 userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                userMarker.icon = android.graphics.drawable.BitmapDrawable(
-                    context.resources,
-                    createColoredMarkerBitmap(android.graphics.Color.BLUE)
-                )
+                userMarker.icon = createColoredMarkerBitmap(android.graphics.Color.BLUE).toDrawable(context.resources)
                 mapView.overlays.add(userMarker)
                 mapView.invalidate()
             }

@@ -1,23 +1,26 @@
 package com.example.goatly.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import com.example.goatly.ui.applications.MyApplicationsScreen
 import com.example.goatly.ui.home.StudentHomeScreen
+import com.example.goatly.ui.profile.ProfileViewModel
 import com.example.goatly.ui.profile.StudentProfileScreen
 import com.example.goatly.ui.theme.AppColors
 
 @Composable
 fun StudentShell(
-    userName: String?,
-    userMajor: String?,
-    userUniversity: String?,
+    profileViewModel: ProfileViewModel,
     onNavigateToOfferDetail: (String) -> Unit,
+    onEditProfile: () -> Unit,
+    onSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
     var selectedIndex by remember { mutableIntStateOf(0) }
@@ -28,7 +31,7 @@ fun StudentShell(
             NavigationBar(containerColor = AppColors.Surface) {
                 listOf(
                     Triple(Icons.Default.Home, "Inicio", 0),
-                    Triple(Icons.Default.List, "Mis apps", 1),
+                    Triple(Icons.AutoMirrored.Filled.List, "Mis apps", 1),
                     Triple(Icons.Default.Person, "Perfil", 2)
                 ).forEach { (icon, label, index) ->
                     NavigationBarItem(
@@ -47,16 +50,18 @@ fun StudentShell(
                 }
             }
         }
-    ) { _ ->
-        when (selectedIndex) {
-            0 -> StudentHomeScreen(onNavigateToDetail = onNavigateToOfferDetail)
-            1 -> MyApplicationsScreen()
-            2 -> StudentProfileScreen(
-                userName = userName,
-                userMajor = userMajor,
-                userUniversity = userUniversity,
-                onLogout = onLogout
-            )
+    ) { padding ->
+        Box(modifier = androidx.compose.ui.Modifier.padding(padding)) {
+            when (selectedIndex) {
+                0 -> StudentHomeScreen(onNavigateToDetail = onNavigateToOfferDetail)
+                1 -> MyApplicationsScreen()
+                2 -> StudentProfileScreen(
+                    profileViewModel = profileViewModel,
+                    onEditProfile = onEditProfile,
+                    onSettings = onSettings,
+                    onLogout = onLogout
+                )
+            }
         }
     }
 }

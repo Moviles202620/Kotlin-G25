@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -52,6 +53,7 @@ dependencies {
     implementation(libs.retrofit.moshi)
     implementation(libs.okhttp.logging)
     implementation(libs.moshi.kotlin)
+    ksp(libs.moshi.codegen)
     implementation(libs.kotlinx.coroutines)
     implementation(libs.osmdroid) {
         exclude(group = "org.jetbrains.kotlin")

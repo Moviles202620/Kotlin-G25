@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,21 +19,35 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goatly.ui.applications.ApplicationsViewModel
 import com.example.goatly.ui.theme.AppColors
-import kotlinx.coroutines.launch
 
 @Composable
 fun StudentProfileScreen(
-    userName: String?,
-    userMajor: String?,
-    userUniversity: String?,
+    profileViewModel: ProfileViewModel,
     appsViewModel: ApplicationsViewModel = viewModel(),
+    onEditProfile: () -> Unit,
+    onSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
-    LaunchedEffect(Unit) { appsViewModel.refresh() }
+    LaunchedEffect(Unit) {
+        appsViewModel.refresh()
+        profileViewModel.loadProfile()
+    }
     val items by appsViewModel.items.collectAsState()
+    val user by profileViewModel.user.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val error by profileViewModel.error.collectAsState()
 
+    LaunchedEffect(error) {
+        if (error != null) {
+            snackbarHostState.showSnackbar(error!!)
+            profileViewModel.clearError()
+        }
+    }
+
+    val userName = user?.name?.takeIf { it.isNotBlank() }
+    val userEmail = user?.email?.takeIf { it.isNotBlank() }
+    val userMajor = user?.department?.takeIf { it.isNotBlank() }
+    val userLanguage = user?.language
     val initials = userName?.split(" ")?.take(2)?.joinToString("") { it.first().uppercase() } ?: "EU"
     val accepted = items.count { it.statusType == ApplicationsViewModel.StatusType.ACCEPTED }
     val pending = items.count { it.statusType == ApplicationsViewModel.StatusType.PENDING }
@@ -61,7 +75,7 @@ fun StudentProfileScreen(
                     Spacer(Modifier.height(4.dp))
                     Text(userMajor ?: "Carrera", color = AppColors.GreyText, fontSize = 15.sp)
                     Spacer(Modifier.height(2.dp))
-                    Text(userUniversity ?: "Universidad de los Andes", color = AppColors.GreyText, fontSize = 15.sp)
+                    Text("Universidad de los Andes", color = AppColors.GreyText, fontSize = 15.sp)
                 }
             }
             item { Spacer(Modifier.height(14.dp)) }
@@ -70,10 +84,10 @@ fun StudentProfileScreen(
             item {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     ProfileSoftButton("Editar perfil", filled = true, modifier = Modifier.weight(1f)) {
-                        scope.launch { snackbarHostState.showSnackbar("Editar perfil (pendiente Sprint 2)") }
+                        onEditProfile()
                     }
                     ProfileSoftButton("Configuración", filled = false, modifier = Modifier.weight(1f)) {
-                        scope.launch { snackbarHostState.showSnackbar("Configuración (pendiente Sprint 2)") }
+                        onSettings()
                     }
                 }
             }
@@ -99,9 +113,13 @@ fun StudentProfileScreen(
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("INFORMACIÓN", fontSize = 12.sp, letterSpacing = 1.4.sp, color = Color(0xFF9AA4B2), fontWeight = FontWeight.W800)
                         HorizontalDivider(color = AppColors.Border)
-                        ProfileInfoRow("Carrera", userMajor ?: "—")
+                        ProfileInfoRow("Correo", userEmail ?: "—")
                         HorizontalDivider(color = AppColors.Border)
-                        ProfileInfoRow("Universidad", userUniversity ?: "Universidad de los Andes")
+                        ProfileInfoRow("Departamento", userMajor ?: "—")
+                        HorizontalDivider(color = AppColors.Border)
+                        ProfileInfoRow("Universidad", "Universidad de los Andes")
+                        HorizontalDivider(color = AppColors.Border)
+                        ProfileInfoRow("Idioma", if (userLanguage == "en") "English" else "Español")
                     }
                 }
             }
@@ -116,7 +134,7 @@ fun StudentProfileScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onLogout) {
-                        Icon(Icons.Default.Logout, contentDescription = null, tint = AppColors.GreyText, modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = AppColors.GreyText, modifier = Modifier.size(18.dp))
                     }
                     Text("Cerrar sesión", color = AppColors.GreyText, fontSize = 16.sp)
                 }

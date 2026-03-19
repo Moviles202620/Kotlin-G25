@@ -7,6 +7,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Query
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,39 @@ data class ChangePasswordRequest(
 @JsonClass(generateAdapter = true)
 data class ChangePasswordResponse(val detail: String)
 
+@JsonClass(generateAdapter = true)
+data class OfferSummaryDto(
+    val id: Int,
+    val title: String,
+    @field:Json(name = "value_cop") val valueCop: Int,
+    @field:Json(name = "duration_hours") val durationHours: Int,
+    @field:Json(name = "date_time") val dateTime: String,
+    @field:Json(name = "is_on_site") val isOnSite: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class MyApplicationItemDto(
+    val id: Int,
+    @field:Json(name = "offer_id") val offerId: Int,
+    val status: String,
+    @field:Json(name = "created_at") val createdAt: String,
+    val offer: OfferSummaryDto
+)
+
+@JsonClass(generateAdapter = true)
+data class ApplicationStatsDto(
+    val total: Int,
+    val pending: Int,
+    val accepted: Int,
+    val rejected: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class MyApplicationsResponseDto(
+    val applications: List<MyApplicationItemDto>,
+    val stats: ApplicationStatsDto
+)
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 interface ApiService {
@@ -111,4 +145,10 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: ChangePasswordRequest
     ): ChangePasswordResponse
+
+    @GET("applications/my")
+    suspend fun getMyApplications(
+        @Header("Authorization") token: String,
+        @Query("status") status: String? = null
+    ): MyApplicationsResponseDto
 }

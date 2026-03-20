@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.goatly.data.network.TokenManager
 import com.example.goatly.ui.applications.ApplicationDetailScreen
 import com.example.goatly.ui.applications.ApplicationsViewModel
 import com.example.goatly.ui.auth.AuthViewModel
@@ -33,10 +34,16 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        tryBiometric()
+        TokenManager.init(this)
+
+        if (TokenManager.isLoggedIn()) {
+            tryBiometricLogin()
+        } else {
+            showApp(startDestination = Routes.LOGIN)
+        }
     }
 
-    private fun tryBiometric() {
+    private fun tryBiometricLogin() {
         val biometricManager = BiometricManager.from(this)
         val canAuthenticate = biometricManager.canAuthenticate(
             BiometricManager.Authenticators.BIOMETRIC_STRONG or
@@ -44,24 +51,27 @@ class MainActivity : FragmentActivity() {
         )
 
         if (canAuthenticate != BiometricManager.BIOMETRIC_SUCCESS) {
-            showApp()
+            showApp(startDestination = Routes.LOGIN)
             return
         }
 
         val executor = ContextCompat.getMainExecutor(this)
         val callback = object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                showApp()
+                authViewModel.restoreSession {
+                    profileViewModel.loadProfile()
+                }
+                showApp(startDestination = Routes.SHELL)
             }
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                showApp()
+                showApp(startDestination = Routes.LOGIN)
             }
             override fun onAuthenticationFailed() { }
         }
 
         BiometricPrompt(this as FragmentActivity, executor, callback).authenticate(
             BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Bienvenido a Goatly")
+                .setTitle("Bienvenido de nuevo a Goatly")
                 .setSubtitle("Confirma tu identidad para continuar")
                 .setAllowedAuthenticators(
                     BiometricManager.Authenticators.BIOMETRIC_STRONG or
@@ -71,8 +81,17 @@ class MainActivity : FragmentActivity() {
         )
     }
 
-    private fun showApp() {
-        setContent { GoatlyTheme { GoatlyStudentApp(authViewModel, profileViewModel, appsViewModel) } }
+    private fun showApp(startDestination: String) {
+        setContent {
+            GoatlyTheme {
+                GoatlyStudentApp(
+                    authViewModel = authViewModel,
+                    profileViewModel = profileViewModel,
+                    appsViewModel = appsViewModel,
+                    startDestination = startDestination
+                )
+            }
+        }
     }
 }
 
@@ -80,11 +99,12 @@ class MainActivity : FragmentActivity() {
 fun GoatlyStudentApp(
     authViewModel: AuthViewModel,
     profileViewModel: ProfileViewModel,
-    appsViewModel: ApplicationsViewModel
+    appsViewModel: ApplicationsViewModel,
+    startDestination: String = Routes.LOGIN
 ) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = Routes.LOGIN) {
+    NavHost(navController = navController, startDestination = startDestination) {
 
         composable(Routes.LOGIN) {
             StudentLoginScreen(
@@ -136,7 +156,7 @@ fun GoatlyStudentApp(
 
         composable(Routes.OFFER_DETAIL) { backStackEntry ->
             val offerId = backStackEntry.arguments?.getString("offerId") ?: return@composable
-            val currentUser by authViewModel.user.collectAsState()
+            val currentUser by authViewModel.user.collectAsStateWithLifecycle()
             OfferDetailScreen(
                 offerId = offerId,
                 userName = currentUser?.name,

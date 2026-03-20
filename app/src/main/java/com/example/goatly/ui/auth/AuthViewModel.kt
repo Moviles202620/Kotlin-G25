@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.example.goatly.data.network.RetrofitClient
+import com.example.goatly.data.network.TokenManager
 
 class AuthViewModel(
     private val authRepository: ApiAuthRepository = RepositoryProvider.authRepository
@@ -65,6 +67,28 @@ class AuthViewModel(
                 _loginError.value = "No se pudo crear la cuenta. Intenta de nuevo."
             }
             _isLoading.value = false
+        }
+    }
+    fun restoreSession(onDone: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val token = TokenManager.getAccessToken()
+                if (token != null) {
+                    val me = RetrofitClient.api.getMe("Bearer $token")
+                    _user.value = UserModel(
+                        name = me.name,
+                        email = me.email,
+                        major = me.department,
+                        role = me.role,
+                        university = "Universidad de los Andes",
+                        language = me.language,
+                        isDarkMode = me.isDarkMode
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("GoatlyNet", "restoreSession failed: ${e.message}")
+            }
+            onDone()
         }
     }
 }

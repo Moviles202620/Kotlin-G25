@@ -45,6 +45,16 @@ data class RegisterRequest(
     val department: String
 )
 
+data class ApplyRequest(@Json(name = "offer_id") val offerId: Int)
+
+data class ApplicationResponse(
+    val id: Int,
+    @Json(name = "offer_id") val offerId: Int,
+    @Json(name = "student_name") val studentName: String,
+    @Json(name = "student_email") val studentEmail: String,
+    val status: String
+)
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 interface ApiService {
@@ -60,4 +70,15 @@ interface ApiService {
 
     @POST("auth/register")
     suspend fun register(@Body request: RegisterRequest): LoginResponse
+
+    @POST("applications")
+    suspend fun applyToOffer(
+        @Header("Authorization") token: String,
+        @Body request: ApplyRequest
+    ): ApplicationResponse
+
+    @GET("applications/my")
+    suspend fun getMyApplications(
+        @Header("Authorization") token: String
+    ): List<ApplicationResponse>
 }

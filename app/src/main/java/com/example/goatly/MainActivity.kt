@@ -4,7 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -17,11 +21,50 @@ import com.example.goatly.ui.navigation.Routes
 import com.example.goatly.ui.navigation.StudentShell
 import com.example.goatly.ui.theme.GoatlyTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        tryBiometric()
+    }
+
+    private fun tryBiometric() {
+        val biometricManager = BiometricManager.from(this)
+        val canAuthenticate = biometricManager.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        )
+
+        if (canAuthenticate != BiometricManager.BIOMETRIC_SUCCESS) {
+            showApp()
+            return
+        }
+
+        val executor = ContextCompat.getMainExecutor(this)
+        val callback = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                showApp()
+            }
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                showApp()
+            }
+            override fun onAuthenticationFailed() { }
+        }
+
+        BiometricPrompt(this as FragmentActivity, executor, callback).authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Bienvenido a Goatly")
+                .setSubtitle("Confirma tu identidad para continuar")
+                .setAllowedAuthenticators(
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                )
+                .build()
+        )
+    }
+
+    private fun showApp() {
         setContent { GoatlyTheme { GoatlyStudentApp(authViewModel) } }
     }
 }

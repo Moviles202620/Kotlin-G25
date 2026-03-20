@@ -118,6 +118,18 @@ data class MyApplicationsResponseDto(
     val stats: ApplicationStatsDto
 )
 
+@JsonClass(generateAdapter = true)
+data class ApplyRequest(@field:Json(name = "offer_id") val offerId: Int)
+
+@JsonClass(generateAdapter = true)
+data class ApplicationResponse(
+    val id: Int,
+    @field:Json(name = "offer_id") val offerId: Int,
+    @field:Json(name = "student_name") val studentName: String,
+    @field:Json(name = "student_email") val studentEmail: String,
+    val status: String
+)
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 interface ApiService {
@@ -145,6 +157,12 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: ChangePasswordRequest
     ): ChangePasswordResponse
+
+    @POST("applications")
+    suspend fun applyToOffer(
+        @Header("Authorization") token: String,
+        @Body request: ApplyRequest
+    ): ApplicationResponse
 
     @GET("applications/my")
     suspend fun getMyApplications(

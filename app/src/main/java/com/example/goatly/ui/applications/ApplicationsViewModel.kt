@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.goatly.data.network.MyApplicationItemDto
 import com.example.goatly.data.network.MyApplicationsResponseDto
+import com.example.goatly.data.network.ApplyRequest
 import com.example.goatly.data.network.RetrofitClient
 import com.example.goatly.data.network.TokenManager
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -35,6 +36,9 @@ class ApplicationsViewModel : ViewModel() {
     private val _selectedApplication = MutableStateFlow<MyApplicationItemDto?>(null)
     val selectedApplication: StateFlow<MyApplicationItemDto?> = _selectedApplication.asStateFlow()
 
+    private val _applyResult = MutableSharedFlow<Result<Unit>>(extraBufferCapacity = 1)
+    val applyResult: SharedFlow<Result<Unit>> = _applyResult.asSharedFlow()
+
     fun selectApplication(app: MyApplicationItemDto) { _selectedApplication.value = app }
 
     /** Reload all applications (resets any active filter). Used by ProfileScreen. */
@@ -63,6 +67,32 @@ class ApplicationsViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 _uiState.value = UiState.Error(e.message ?: "Error de conexión")
+            }
+        }
+    }
+
+    fun applyToOffer(offerId: Int) {
+        viewModelScope.launch {
+            val token = TokenManager.getAccessToken() ?: run {
+                _navigateToLogin.tryEmit(Unit)
+                return@launch
+            }
+            try {
+                RetrofitClient.api.applyToOffer(
+                    token = "Bearer $token",
+                    request = ApplyRequest(offerId = offerId)
+                )
+                _applyResult.tryEmit(Result.success(Unit))
+                refresh()
+            } catch (e: HttpException) {
+                if (e.code() == 401) {
+                    _navigateToLogin.tryEmit(Unit)
+                } else {
+                    val detail = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+                    _applyResult.tryEmit(Result.failure(Exception(detail ?: "Error ${e.code()}")))
+                }
+            } catch (e: Exception) {
+                _applyResult.tryEmit(Result.failure(e))
             }
         }
     }

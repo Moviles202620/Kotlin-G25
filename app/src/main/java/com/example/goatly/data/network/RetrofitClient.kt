@@ -1,7 +1,6 @@
 package com.example.goatly.data.network
 
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -11,9 +10,7 @@ object RetrofitClient {
 
     private const val BASE_URL = "http://10.0.2.2:8000/"
 
-    private val moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
+    private val moshi = Moshi.Builder().build()
 
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -21,8 +18,9 @@ object RetrofitClient {
 
     private val httpClient = OkHttpClient.Builder()
         .addInterceptor(logging)
-        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+        .connectionPool(okhttp3.ConnectionPool(0, 1, java.util.concurrent.TimeUnit.NANOSECONDS))
+        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
     val api: ApiService by lazy {

@@ -29,12 +29,20 @@ class AuthViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             _loginError.value = null
-            val result = authRepository.loginSuspend(email, password)
-            if (result != null) {
-                _user.value = result
-                onSuccess()
-            } else {
-                _loginError.value = "Correo o contraseña incorrectos"
+            try {
+                val result = authRepository.loginSuspend(email, password)
+                if (result != null) {
+                    _user.value = result
+                    onSuccess()
+                } else {
+                    _loginError.value = "Correo o contraseña incorrectos"
+                }
+            } catch (e: Exception) {
+                if (e.message == "STAFF_ROLE") {
+                    _loginError.value = "Esta app es solo para estudiantes. Si eres funcionario, usa la aplicación correspondiente."
+                } else {
+                    _loginError.value = "Correo o contraseña incorrectos"
+                }
             }
             _isLoading.value = false
         }
@@ -45,11 +53,11 @@ class AuthViewModel(
         _user.value = null
     }
 
-    fun register(name: String, email: String, password: String, major: String, onSuccess: () -> Unit) {
+    fun register(name: String, email: String, password: String, major: String, role: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             _loginError.value = null
-            val result = authRepository.registerSuspend(name, email, password, major)
+            val result = authRepository.registerSuspend(name, email, password, major, role)
             if (result != null) {
                 _user.value = result
                 onSuccess()

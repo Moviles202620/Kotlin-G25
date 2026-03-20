@@ -20,16 +20,16 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
     suspend fun getAllSuspend(): List<ApplicationModel> {
         val token = TokenManager.getAccessToken() ?: return emptyList()
         return try {
-            api.getMyApplications("Bearer $token").map { resp ->
+            val response = api.getMyApplications("Bearer $token")
+            response.applications.map { item ->
                 ApplicationModel(
-                    id = resp.id.toString(),
-                    applicantName = resp.studentName,
-                    applicantInitials = resp.studentName.split(" ").take(2)
-                        .joinToString("") { it.first().uppercase() },
-                    offerId = resp.offerId.toString(),
-                    offerTitle = "Oferta #${resp.offerId}",
+                    id = item.id.toString(),
+                    applicantName = "",
+                    applicantInitials = "",
+                    offerId = item.offerId.toString(),
+                    offerTitle = item.offer.title,
                     createdAt = Date(),
-                    status = when (resp.status) {
+                    status = when (item.status) {
                         "accepted" -> ApplicationStatus.ACCEPTED
                         "rejected" -> ApplicationStatus.REJECTED
                         else       -> ApplicationStatus.PENDING

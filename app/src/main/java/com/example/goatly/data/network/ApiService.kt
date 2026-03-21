@@ -140,6 +140,9 @@ interface ApiService {
     @GET("users/me")
     suspend fun getMe(@Header("Authorization") token: String): UserResponse
 
+    @GET("offers")
+    suspend fun getAllOffers(): List<OfferResponse>
+
     @GET("offers/my")
     suspend fun getOffers(@Header("Authorization") token: String): List<OfferResponse>
 

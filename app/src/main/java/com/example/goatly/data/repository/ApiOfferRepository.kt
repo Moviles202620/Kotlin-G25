@@ -20,9 +20,8 @@ class ApiOfferRepository(private val api: ApiService) : OfferRepository {
     }
 
     suspend fun getAllSuspend(): List<OfferModel> {
-        val token = TokenManager.getAccessToken() ?: return MockOfferRepository().getAll()
         return try {
-            api.getOffers("Bearer $token").map { offer ->
+            api.getAllOffers().map { offer ->
                 OfferModel(
                     id = offer.id.toString(),
                     title = offer.title,

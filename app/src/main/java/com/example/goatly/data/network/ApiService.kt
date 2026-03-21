@@ -46,7 +46,7 @@ data class UserResponse(
 @JsonClass(generateAdapter = true)
 data class OfferResponse(
     val id: Int,
-    @field:Json(name = "staff_id") val staffId: Int,
+    @field:Json(name = "staff_id") val staffId: Int? = null,
     val title: String,
     val description: String,
     val category: String?,

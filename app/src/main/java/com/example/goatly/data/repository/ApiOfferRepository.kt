@@ -35,6 +35,7 @@ class ApiOfferRepository(private val api: ApiService) : OfferRepository {
                 )
             }
         } catch (e: Exception) {
+            android.util.Log.e("GOATLY", "Error loading offers: ${e.message}", e)
             MockOfferRepository().getAll()
         }
     }

@@ -71,7 +71,7 @@ class ApiAuthRepository(private val api: ApiService) : AuthRepository {
 
     override fun logout() {
         _currentUser = null
-        // TokenManager.clear() — no borrar token para mantener sesión biométrica
+        TokenManager.clear()
     }
 
     override fun currentUser(): UserModel? = _currentUser

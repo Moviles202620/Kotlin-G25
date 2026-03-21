@@ -1,0 +1,259 @@
+package com.example.goatly.ui.applications
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.goatly.data.network.ApplicationStatsDto
+import com.example.goatly.data.network.MyApplicationItemDto
+import com.example.goatly.ui.theme.AppColors
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyApplicationsScreen(
+    appsViewModel: ApplicationsViewModel = viewModel(),
+    onSessionExpired: () -> Unit = {},
+    onNavigateToDetail: (app: MyApplicationItemDto) -> Unit = {}
+) {
+    val uiState by appsViewModel.uiState.collectAsState()
+    val activeFilter by appsViewModel.activeFilter.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Carga inicial al entrar a la pantalla
+    LaunchedEffect(Unit) {
+        appsViewModel.load()
+    }
+
+    // One-time navigation event for 401
+    LaunchedEffect(Unit) {
+        appsViewModel.navigateToLogin.collect { onSessionExpired() }
+    }
+
+    // Show error in snackbar
+    LaunchedEffect(uiState) {
+        if (uiState is ApplicationsViewModel.UiState.Error) {
+            snackbarHostState.showSnackbar((uiState as ApplicationsViewModel.UiState.Error).message)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Mis aplicaciones", fontWeight = FontWeight.W800) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.Surface)
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = AppColors.Background,
+        contentWindowInsets = WindowInsets(0)
+    ) { padding ->
+        when (val state = uiState) {
+            is ApplicationsViewModel.UiState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AppColors.PrimaryYellow)
+                }
+            }
+
+            is ApplicationsViewModel.UiState.Success -> {
+                val response = state.response
+                LazyColumn(
+                    modifier = Modifier.padding(padding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Stats banner
+                    item {
+                        StatsCard(stats = response.stats)
+                    }
+
+                    // Filter row
+                    item {
+                        FilterRow(activeFilter = activeFilter, onFilter = { appsViewModel.load(it) })
+                    }
+
+                    if (response.applications.isEmpty()) {
+                        item { EmptyApplications() }
+                    } else {
+                        item {
+                            Text("Historial", fontSize = 22.sp, fontWeight = FontWeight.W800)
+                        }
+                        items(response.applications) { app ->
+                            ApplicationCard(
+                                app = app,
+                                onClick = { onNavigateToDetail(app) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            is ApplicationsViewModel.UiState.Error -> {
+                // Error is shown via snackbar; show empty list so layout is stable
+                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    EmptyApplications()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsCard(stats: ApplicationStatsDto) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text("RESUMEN", fontSize = 12.sp, letterSpacing = 1.4.sp, color = Color(0xFF9AA4B2), fontWeight = FontWeight.W800)
+            Spacer(Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                SummaryMetric("${stats.pending}", "Pendientes", Modifier.weight(1f))
+                Box(modifier = Modifier.width(1.dp).height(50.dp).background(AppColors.Border))
+                SummaryMetric("${stats.accepted}", "Aceptadas", Modifier.weight(1f), valueColor = AppColors.Success)
+                Box(modifier = Modifier.width(1.dp).height(50.dp).background(AppColors.Border))
+                SummaryMetric("${stats.total}", "Total", Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryMetric(value: String, label: String, modifier: Modifier = Modifier, valueColor: Color = AppColors.DarkText) {
+    Column(modifier = modifier.padding(horizontal = 10.dp)) {
+        Text(value, fontSize = 34.sp, fontWeight = FontWeight.W900, color = valueColor)
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = AppColors.GreyText, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun FilterRow(activeFilter: String?, onFilter: (String?) -> Unit) {
+    val filters = listOf(
+        null to "Todas",
+        "pending" to "Pendientes",
+        "accepted" to "Aceptadas",
+        "rejected" to "Rechazadas"
+    )
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 0.dp)
+    ) {
+        items(filters) { (value, label) ->
+            val selected = activeFilter == value
+            FilterChip(
+                selected = selected,
+                onClick = { onFilter(value) },
+                label = { Text(label, fontWeight = if (selected) FontWeight.W800 else FontWeight.W500, fontSize = 13.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = AppColors.PrimaryYellow,
+                    selectedLabelColor = AppColors.DarkText,
+                    containerColor = AppColors.Surface,
+                    labelColor = AppColors.GreyText
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = selected,
+                    borderColor = AppColors.Border,
+                    selectedBorderColor = Color.Transparent
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ApplicationCard(app: MyApplicationItemDto, onClick: () -> Unit) {
+    val (statusLabel, statusColor) = when (app.status) {
+        "accepted" -> "ACEPTADA" to AppColors.Success
+        "rejected" -> "RECHAZADA" to AppColors.Danger
+        else       -> "PENDIENTE" to Color(0xFF9AA4B2)
+    }
+
+    val dateLabel = remember(app.createdAt) {
+        try {
+            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            formatter.format(parser.parse(app.createdAt.substringBefore("Z").substringBefore("+"))!!)
+        } catch (e: Exception) {
+            app.createdAt.take(10)
+        }
+    }
+
+    val copFormatted = remember(app.offer.valueCop) {
+        NumberFormat.getNumberInstance(Locale("es", "CO")).format(app.offer.valueCop) + " COP"
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)).clickable { onClick() },
+        shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .background(AppColors.PrimaryYellow.copy(alpha = 0.15f), CircleShape)
+                    .border(1.dp, AppColors.PrimaryYellow.copy(alpha = 0.35f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("G", fontWeight = FontWeight.W900, color = Color(0xFF9A5B00))
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(app.offer.title, fontSize = 17.sp, fontWeight = FontWeight.W900)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "$copFormatted · ${app.offer.durationHours}h",
+                    color = AppColors.GreyText, fontSize = 13.sp
+                )
+                Spacer(Modifier.height(2.dp))
+                Text("Aplicado el $dateLabel", color = AppColors.GreyText, fontSize = 13.sp)
+            }
+            Text(statusLabel, fontWeight = FontWeight.W900, color = statusColor, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun EmptyApplications(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(60.dp))
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .border(1.dp, AppColors.Border, CircleShape)
+                .background(AppColors.Surface, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Inbox, contentDescription = null, modifier = Modifier.size(46.dp), tint = Color(0xFFB6BFCC))
+        }
+        Spacer(Modifier.height(22.dp))
+        Text("Sin aplicaciones", fontSize = 28.sp, fontWeight = FontWeight.W900)
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "No hay aplicaciones para este filtro.",
+            fontSize = 18.sp, color = AppColors.GreyText, lineHeight = 24.sp
+        )
+    }
+}

@@ -30,6 +30,7 @@ fun StudentLoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val isLoading by authViewModel.isLoading.collectAsStateWithLifecycle()
@@ -40,6 +41,8 @@ fun StudentLoginScreen(
             snackbarHostState.showSnackbar(loginError!!)
         }
     }
+
+    val isFormValid = email.isNotBlank() && password.isNotBlank() && emailError == null
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -76,10 +79,23 @@ fun StudentLoginScreen(
                         Spacer(Modifier.height(10.dp))
                         GoatlyTextField(
                             value = email,
-                            onValueChange = { email = it },
+                            onValueChange = {
+                                email = it
+                                val e = it.trim().lowercase()
+                                emailError = when {
+                                    e.isBlank() -> null
+                                    !e.contains("@") -> "Ingresa un correo válido"
+                                    e.startsWith("@") -> "Ingresa algo antes del @"
+                                    !e.endsWith("@uniandes.edu.co") -> "Debe ser un correo @uniandes.edu.co"
+                                    else -> null
+                                }
+                            },
                             placeholder = "nombre@uniandes.edu.co",
                             keyboardType = KeyboardType.Email
                         )
+                        emailError?.let {
+                            Text(it, color = Color.Red, fontSize = 12.sp)
+                        }
 
                         Spacer(Modifier.height(18.dp))
                         Text("Contraseña", fontSize = 16.sp, fontWeight = FontWeight.W700)
@@ -95,17 +111,21 @@ fun StudentLoginScreen(
 
                         Button(
                             onClick = {
-                                authViewModel.login(
-                                    email = email.trim(),
-                                    password = password,
-                                    onSuccess = onLoginSuccess
-                                )
+                                if (isFormValid) {
+                                    authViewModel.login(
+                                        email = email.trim(),
+                                        password = password,
+                                        onSuccess = onLoginSuccess
+                                    )
+                                }
                             },
-                            enabled = !isLoading,
+                            enabled = !isLoading && isFormValid,
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = AppColors.DarkText,
-                                contentColor = AppColors.PrimaryYellow
+                                contentColor = AppColors.PrimaryYellow,
+                                disabledContainerColor = AppColors.DarkText.copy(alpha = 0.4f),
+                                disabledContentColor = AppColors.PrimaryYellow.copy(alpha = 0.4f)
                             ),
                             shape = RoundedCornerShape(28.dp)
                         ) {

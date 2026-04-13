@@ -47,13 +47,23 @@ fun StudentRegisterScreen(
     val nameRegex = Regex("^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+$")
     val passwordRegex = Regex("^\\S+$")
 
+    fun validateEmail(value: String): String? {
+        val e = value.trim().lowercase()
+        return when {
+            value.isBlank() -> null
+            emojiRegex.containsMatchIn(value) -> "El correo no puede contener emojis"
+            !e.contains("@") -> "Ingresa un correo válido"
+            e.startsWith("@") -> "Ingresa algo antes del @"
+            !e.endsWith("@uniandes.edu.co") -> "Debe ser un correo @uniandes.edu.co"
+            else -> null
+        }
+    }
+
     val careers = listOf(
         "No Aplica",
-        // Administrativa y Económica
         "Administración",
         "Economía",
         "Gobierno y Asuntos Públicos",
-        // Científica
         "Biología",
         "Física",
         "Geociencias",
@@ -61,7 +71,6 @@ fun StudentRegisterScreen(
         "Microbiología",
         "Química",
         "Medicina",
-        // Creativa
         "Arquitectura",
         "Diseño",
         "Arte",
@@ -69,7 +78,6 @@ fun StudentRegisterScreen(
         "Literatura",
         "Música",
         "Narrativas Digitales",
-        // Ingenio
         "Ingeniería Ambiental",
         "Ingeniería de Alimentos",
         "Ingeniería Biomédica",
@@ -80,7 +88,6 @@ fun StudentRegisterScreen(
         "Ingeniería Mecánica",
         "Ingeniería Química",
         "Ingeniería de Sistemas y Computación",
-        // Social
         "Derecho",
         "Antropología",
         "Ciencia Política",
@@ -89,7 +96,6 @@ fun StudentRegisterScreen(
         "Historia",
         "Lenguas y Cultura",
         "Psicología",
-        // Educación
         "Licenciatura en Artes",
         "Licenciatura en Biología",
         "Licenciatura en Educación Infantil",
@@ -207,13 +213,7 @@ fun StudentRegisterScreen(
                         value = email,
                         onValueChange = {
                             email = it
-                            val e = it.trim().lowercase()
-                            emailError = when {
-                                it.isBlank() -> null
-                                emojiRegex.containsMatchIn(it) -> "El correo no puede contener emojis"
-                                !e.endsWith("@uniandes.edu.co") -> "Debe ser un correo @uniandes.edu.co"
-                                else -> null
-                            }
+                            emailError = validateEmail(it)
                         },
                         placeholder = "nombre@uniandes.edu.co",
                         keyboardType = KeyboardType.Email
@@ -294,19 +294,13 @@ fun StudentRegisterScreen(
 
                     Button(
                         onClick = {
-                            val e = email.trim().lowercase()
                             nameError = when {
                                 name.isBlank() -> "Campo requerido"
                                 emojiRegex.containsMatchIn(name) -> "El nombre no puede contener emojis"
                                 !nameRegex.matches(name) -> "Solo letras y espacios"
                                 else -> null
                             }
-                            emailError = when {
-                                email.isBlank() -> "Campo requerido"
-                                emojiRegex.containsMatchIn(email) -> "El correo no puede contener emojis"
-                                !e.endsWith("@uniandes.edu.co") -> "Debe ser un correo @uniandes.edu.co"
-                                else -> null
-                            }
+                            emailError = if (email.isBlank()) "Campo requerido" else validateEmail(email)
                             majorError = if (major.isBlank()) "Selecciona una carrera" else null
                             passwordError = when {
                                 password.isBlank() -> "Campo requerido"

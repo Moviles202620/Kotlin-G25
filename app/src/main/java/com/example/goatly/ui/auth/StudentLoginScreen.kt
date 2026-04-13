@@ -157,13 +157,6 @@ fun StudentLoginScreen(
                         Text("Regístrate", color = AppColors.PrimaryYellow, fontWeight = FontWeight.W700)
                     }
                 }
-
-                Spacer(Modifier.height(14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                    listOf("Privacidad", "Términos", "Ayuda").forEach {
-                        Text(it, color = Color(0xFF9AA4B2))
-                    }
-                }
             }
         }
     }

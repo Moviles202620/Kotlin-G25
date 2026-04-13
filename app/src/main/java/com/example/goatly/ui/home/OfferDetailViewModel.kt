@@ -1,18 +1,19 @@
 package com.example.goatly.ui.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.goatly.data.network.LocationManager
 import com.example.goatly.data.repository.ApiApplicationRepository
 import com.example.goatly.data.repository.ApiOfferRepository
 import com.example.goatly.data.repository.RepositoryProvider
+import com.google.android.gms.location.LocationCallback
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
-import android.content.Context
-import com.example.goatly.data.network.LocationManager
 
 class OfferDetailViewModel(
     private val offerRepository: ApiOfferRepository = RepositoryProvider.offerRepository,
@@ -40,15 +41,18 @@ class OfferDetailViewModel(
     private val _state = MutableStateFlow(OfferDetailUiState())
     val state: StateFlow<OfferDetailUiState> = _state.asStateFlow()
 
+    private var locationCallback: LocationCallback? = null
+    private var offerLat: Double = 4.6015
+    private var offerLng: Double = -74.0657
+
     fun load(offerId: String, context: Context) {
         viewModelScope.launch {
             val fmt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
             val offer = offerRepository.getAllSuspend().find { it.id == offerId } ?: return@launch
 
-            val offerLat = offer.latitude ?: 4.6015
-            val offerLng = offer.longitude ?: -74.0657
+            offerLat = offer.latitude ?: 4.6015
+            offerLng = offer.longitude ?: -74.0657
 
-            // Verificar si ya aplicó consultando el backend
             val alreadyApplied = try {
                 applicationRepository.getAllSuspend().any { it.offerId == offerId }
             } catch (e: Exception) {
@@ -72,16 +76,30 @@ class OfferDetailViewModel(
             )
 
             if (offer.isOnSite) {
-                LocationManager.getCurrentLocation(context) { userLat, userLng ->
-                    val meters = LocationManager.distanceInMeters(userLat, userLng, offerLat, offerLng)
-                    _state.value = _state.value.copy(
-                        distanceText = LocationManager.formatDistance(meters),
-                        userLatitude = userLat,
-                        userLongitude = userLng
-                    )
-                }
+                startTrackingLocation(context)
             }
         }
+    }
+
+    private fun startTrackingLocation(context: Context) {
+        locationCallback = LocationManager.startLocationUpdates(context) { userLat, userLng ->
+            val meters = LocationManager.distanceInMeters(userLat, userLng, offerLat, offerLng)
+            _state.value = _state.value.copy(
+                distanceText = LocationManager.formatDistance(meters),
+                userLatitude = userLat,
+                userLongitude = userLng
+            )
+        }
+    }
+
+    fun stopTracking(context: Context) {
+        locationCallback?.let { LocationManager.stopLocationUpdates(context, it) }
+        locationCallback = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        locationCallback = null
     }
 
     fun apply(offerId: String, applicantName: String) {

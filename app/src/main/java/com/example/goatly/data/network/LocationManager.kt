@@ -2,6 +2,9 @@ package com.example.goatly.data.network
 
 import android.annotation.SuppressLint
 import android.content.Context
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -19,6 +22,33 @@ object LocationManager {
                     onResult(location.latitude, location.longitude)
                 }
             }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun startLocationUpdates(
+        context: Context,
+        onUpdate: (lat: Double, lng: Double) -> Unit
+    ): LocationCallback {
+        val client = LocationServices.getFusedLocationProviderClient(context)
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
+            .setMinUpdateDistanceMeters(5f)
+            .build()
+
+        val callback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult) {
+                result.lastLocation?.let { location ->
+                    onUpdate(location.latitude, location.longitude)
+                }
+            }
+        }
+
+        client.requestLocationUpdates(request, callback, context.mainLooper)
+        return callback
+    }
+
+    fun stopLocationUpdates(context: Context, callback: LocationCallback) {
+        LocationServices.getFusedLocationProviderClient(context)
+            .removeLocationUpdates(callback)
     }
 
     fun distanceInMeters(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {

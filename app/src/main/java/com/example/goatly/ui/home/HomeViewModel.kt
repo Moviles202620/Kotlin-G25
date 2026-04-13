@@ -25,6 +25,8 @@ class HomeViewModel(
         val isOnSite: Boolean
     )
 
+    private val _allOffers = MutableStateFlow<List<OfferUiItem>>(emptyList())
+
     private val _offers = MutableStateFlow<List<OfferUiItem>>(emptyList())
     val offers: StateFlow<List<OfferUiItem>> = _offers.asStateFlow()
 
@@ -34,7 +36,8 @@ class HomeViewModel(
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
 
-    val categories = listOf("Académico", "Administrativo", "Eventos", "Logística")
+    private val _categories = MutableStateFlow<List<String>>(emptyList())
+    val categories: StateFlow<List<String>> = _categories.asStateFlow()
 
     init { refresh() }
 
@@ -43,25 +46,28 @@ class HomeViewModel(
             _isLoading.value = true
             val fmt = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
             val all = offerRepository.getAllSuspend()
-            _offers.value = all
-                .filter { o -> _selectedCategory.value == null || o.category == _selectedCategory.value }
-                .map { o ->
-                    OfferUiItem(
-                        id = o.id,
-                        title = o.title,
-                        category = o.category,
-                        categoryAndValue = "${o.category} • \$${o.valueCop} COP",
-                        whenAndDuration = "${fmt.format(o.dateTime)} • ${o.durationHours}h",
-                        location = if (o.isOnSite) "Presencial" else "Remoto",
-                        isOnSite = o.isOnSite
-                    )
-                }
+            val mapped = all.map { o ->
+                OfferUiItem(
+                    id = o.id,
+                    title = o.title,
+                    category = o.category,
+                    categoryAndValue = "${o.category} • \$${o.valueCop} COP",
+                    whenAndDuration = "${fmt.format(o.dateTime)} • ${o.durationHours}h",
+                    location = if (o.isOnSite) "Presencial" else "Remoto",
+                    isOnSite = o.isOnSite
+                )
+            }
+            _allOffers.value = mapped
+            _categories.value = mapped.map { it.category }.distinct().sorted()
+            _offers.value = if (_selectedCategory.value == null) mapped
+            else mapped.filter { it.category == _selectedCategory.value }
             _isLoading.value = false
         }
     }
 
     fun selectCategory(cat: String?) {
         _selectedCategory.value = cat
-        refresh()
+        _offers.value = if (cat == null) _allOffers.value
+        else _allOffers.value.filter { it.category == cat }
     }
 }

@@ -53,7 +53,7 @@ fun StudentRegisterScreen(
             value.isBlank() -> null
             emojiRegex.containsMatchIn(value) -> "El correo no puede contener emojis"
             !e.contains("@") -> "Ingresa un correo válido"
-            e.startsWith("@") -> "Ingresa algo antes del @"
+            e.startsWith("@") -> "Correo inválido, no cumple con el formato"
             !e.endsWith("@uniandes.edu.co") -> "Debe ser un correo @uniandes.edu.co"
             else -> null
         }

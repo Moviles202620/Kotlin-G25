@@ -85,7 +85,7 @@ fun StudentLoginScreen(
                                 emailError = when {
                                     e.isBlank() -> null
                                     !e.contains("@") -> "Ingresa un correo válido"
-                                    e.startsWith("@") -> "Ingresa algo antes del @"
+                                    e.startsWith("@") -> "Correo inválido, no cumple con el formato"
                                     !e.endsWith("@uniandes.edu.co") -> "Debe ser un correo @uniandes.edu.co"
                                     else -> null
                                 }

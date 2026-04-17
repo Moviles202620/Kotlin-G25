@@ -31,6 +31,7 @@ fun StudentHomeScreen(
 ) {
     val offers by homeViewModel.offers.collectAsState()
     val selectedCategory by homeViewModel.selectedCategory.collectAsState()
+    val categories by homeViewModel.categories.collectAsState()
 
     Scaffold(
         topBar = {
@@ -74,7 +75,7 @@ fun StudentHomeScreen(
                             )
                         )
                     }
-                    items(homeViewModel.categories) { cat ->
+                    items(categories) { cat ->
                         FilterChip(
                             selected = selectedCategory == cat,
                             onClick = { homeViewModel.selectCategory(cat) },
@@ -121,14 +122,12 @@ fun OfferCard(offer: HomeViewModel.OfferUiItem, onClick: () -> Unit, modifier: M
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Category badge
                 Box(
                     modifier = Modifier.background(AppColors.PrimaryYellow.copy(alpha = 0.15f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(offer.category, fontSize = 12.sp, fontWeight = FontWeight.W700, color = Color(0xFF9A5B00))
                 }
                 Spacer(Modifier.weight(1f))
-                // Location badge
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(14.dp), tint = AppColors.GreyText)
                     Spacer(Modifier.width(2.dp))

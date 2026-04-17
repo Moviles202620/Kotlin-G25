@@ -119,7 +119,16 @@ data class MyApplicationsResponseDto(
 )
 
 @JsonClass(generateAdapter = true)
-data class ApplyRequest(@field:Json(name = "offer_id") val offerId: Int)
+data class ApplyRequest(
+    @field:Json(name = "offer_id") val offerId: Int,
+    @field:Json(name = "offer_title") val offerTitle: String = "",
+    @field:Json(name = "applicant_name") val applicantName: String = "",
+    val career: String = "",
+    val semester: Int = 1,
+    val gpa: Float = 0.0f,
+    val availability: String = "flexible",
+    @field:Json(name = "motivation_letter") val motivationLetter: String = ""
+)
 
 @JsonClass(generateAdapter = true)
 data class ApplicationResponse(

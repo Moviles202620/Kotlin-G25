@@ -44,6 +44,7 @@ import org.osmdroid.views.overlay.Marker
 fun OfferDetailScreen(
     offerId: String,
     userName: String?,
+    userCareer: String?,
     detailViewModel: OfferDetailViewModel = viewModel(),
     onBack: () -> Unit
 ) {
@@ -58,6 +59,12 @@ fun OfferDetailScreen(
 
     LaunchedEffect(offerId) {
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    DisposableEffect(offerId) {
+        onDispose {
+            detailViewModel.stopTracking(context)
+        }
     }
 
     val lat = state.latitude ?: 4.6015
@@ -157,7 +164,7 @@ fun OfferDetailScreen(
                 }
             } else {
                 Button(
-                    onClick = { detailViewModel.apply(offerId, userName ?: "Estudiante Uniandes") },
+                    onClick = { detailViewModel.apply(offerId, userName ?: "", userCareer ?: "") },
                     modifier = Modifier.fillMaxWidth().height(58.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryYellow, contentColor = Color.Black),
                     shape = RoundedCornerShape(12.dp)
@@ -202,7 +209,6 @@ fun OsmMapView(
                 controller.setZoom(15.0)
                 controller.setCenter(GeoPoint(latitude, longitude))
 
-                // Marcador de la oferta (verde por defecto)
                 val offerMarker = Marker(this)
                 offerMarker.position = GeoPoint(latitude, longitude)
                 offerMarker.title = title

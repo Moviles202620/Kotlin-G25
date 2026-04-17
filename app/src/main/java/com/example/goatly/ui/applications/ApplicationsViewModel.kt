@@ -96,4 +96,22 @@ class ApplicationsViewModel : ViewModel() {
             }
         }
     }
+
+    //BQ: Top Offers
+
+    data class TopOfferItem(val title: String, val total: Int)
+
+    private val _topOffers = MutableStateFlow<List<TopOfferItem>>(emptyList())
+    val topOffers: StateFlow<List<TopOfferItem>> = _topOffers.asStateFlow()
+
+    fun loadTopOffers() {
+        viewModelScope.launch {
+            try {
+                val result = RetrofitClient.api.getTopOffers()
+                _topOffers.value = result.map { TopOfferItem(it.title, it.total) }
+            } catch (e: Exception) {
+                android.util.Log.e("GoatlyNet", "loadTopOffers failed: ${e.message}")
+            }
+        }
+    }
 }

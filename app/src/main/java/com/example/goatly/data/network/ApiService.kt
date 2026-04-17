@@ -139,6 +139,9 @@ data class ApplicationResponse(
     val status: String
 )
 
+@JsonClass(generateAdapter = true)
+data class TopOfferDto(val title: String, val total: Int)
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 interface ApiService {
@@ -181,4 +184,7 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Query("status") status: String? = null
     ): MyApplicationsResponseDto
+
+    @GET("applications/bq/top-offers")
+    suspend fun getTopOffers(): List<TopOfferDto>
 }

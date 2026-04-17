@@ -32,21 +32,39 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
                     status = when (item.status) {
                         "accepted" -> ApplicationStatus.ACCEPTED
                         "rejected" -> ApplicationStatus.REJECTED
-                        else       -> ApplicationStatus.PENDING
+                        else -> ApplicationStatus.PENDING
                     }
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             MockApplicationRepository().getAll()
         }
     }
 
-    suspend fun apply(offerId: Int): Boolean {
+    suspend fun apply(
+        offerId: Int,
+        offerTitle: String,
+        applicantName: String,
+        career: String,
+        motivationLetter: String
+    ): Boolean {
         val token = TokenManager.getAccessToken() ?: return false
         return try {
-            api.applyToOffer("Bearer $token", ApplyRequest(offerId))
+            api.applyToOffer(
+                "Bearer $token",
+                ApplyRequest(
+                    offerId = offerId,
+                    offerTitle = offerTitle,
+                    applicantName = applicantName,
+                    career = career,
+                    semester = 1,
+                    gpa = 0.0f,
+                    availability = "flexible",
+                    motivationLetter = motivationLetter
+                )
+            )
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }

@@ -55,7 +55,7 @@ class OfferDetailViewModel(
 
             val alreadyApplied = try {
                 applicationRepository.getAllSuspend().any { it.offerId == offerId }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 false
             }
 
@@ -102,10 +102,16 @@ class OfferDetailViewModel(
         locationCallback = null
     }
 
-    fun apply(offerId: String, applicantName: String) {
+    fun apply(offerId: String, userName: String, userCareer: String) {
         viewModelScope.launch {
             val offerIdInt = offerId.toIntOrNull() ?: return@launch
-            val success = applicationRepository.apply(offerIdInt)
+            val success = applicationRepository.apply(
+                offerId = offerIdInt,
+                offerTitle = _state.value.title,
+                applicantName = userName,
+                career = userCareer,
+                motivationLetter = "Soy $userName y me interesa esta oferta para fortalecer mi experiencia en $userCareer y aportar a la Universidad de los Andes."
+            )
             if (success) {
                 _state.value = _state.value.copy(hasApplied = true)
             }

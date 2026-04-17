@@ -160,6 +160,7 @@ fun GoatlyStudentApp(
             OfferDetailScreen(
                 offerId = offerId,
                 userName = currentUser?.name,
+                userCareer = currentUser?.major,
                 onBack = { navController.popBackStack() }
             )
         }

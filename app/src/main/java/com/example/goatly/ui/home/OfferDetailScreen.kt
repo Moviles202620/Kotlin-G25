@@ -44,6 +44,7 @@ import org.osmdroid.views.overlay.Marker
 fun OfferDetailScreen(
     offerId: String,
     userName: String?,
+    userCareer: String?,
     detailViewModel: OfferDetailViewModel = viewModel(),
     onBack: () -> Unit
 ) {
@@ -60,7 +61,6 @@ fun OfferDetailScreen(
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    // Detener el tracking cuando el usuario sale de la pantalla
     DisposableEffect(offerId) {
         onDispose {
             detailViewModel.stopTracking(context)
@@ -164,7 +164,7 @@ fun OfferDetailScreen(
                 }
             } else {
                 Button(
-                    onClick = { detailViewModel.apply(offerId, userName ?: "Estudiante Uniandes") },
+                    onClick = { detailViewModel.apply(offerId, userName ?: "", userCareer ?: "") },
                     modifier = Modifier.fillMaxWidth().height(58.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryYellow, contentColor = Color.Black),
                     shape = RoundedCornerShape(12.dp)

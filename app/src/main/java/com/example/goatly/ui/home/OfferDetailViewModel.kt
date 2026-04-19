@@ -2,6 +2,9 @@ package com.example.goatly.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.goatly.data.network.ApplyRequest
+import com.example.goatly.data.network.RetrofitClient
+import com.example.goatly.data.network.TokenManager
 import com.example.goatly.data.repository.ApiApplicationRepository
 import com.example.goatly.data.repository.ApiOfferRepository
 import com.example.goatly.data.repository.RepositoryProvider
@@ -13,6 +16,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import android.content.Context
 import com.example.goatly.data.network.LocationManager
+import retrofit2.HttpException
 
 class OfferDetailViewModel(
     private val offerRepository: ApiOfferRepository = RepositoryProvider.offerRepository,
@@ -39,6 +43,12 @@ class OfferDetailViewModel(
 
     private val _state = MutableStateFlow(OfferDetailUiState())
     val state: StateFlow<OfferDetailUiState> = _state.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     fun load(offerId: String, context: Context) {
         viewModelScope.launch {
@@ -90,6 +100,58 @@ class OfferDetailViewModel(
             val success = applicationRepository.apply(offerIdInt)
             if (success) {
                 _state.value = _state.value.copy(hasApplied = true)
+            }
+        }
+    }
+
+    fun applyWithDetails(
+        offerId: String,
+        applicantName: String,
+        career: String,
+        semester: Int,
+        gpa: Float,
+        availability: String,
+        motivationLetter: String,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val offerIdInt = offerId.toIntOrNull() ?: run {
+                    _error.value = "ID de oferta inválido"
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                val token = TokenManager.getAccessToken() ?: run {
+                    _error.value = "Sesión expirada"
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                val request = ApplyRequest(
+                    offerId = offerIdInt,
+                    applicantName = applicantName,
+                    career = career,
+                    semester = semester,
+                    gpa = gpa,
+                    availability = availability,
+                    motivationLetter = motivationLetter
+                )
+
+                RetrofitClient.api.applyToOffer("Bearer $token", request)
+                _state.value = _state.value.copy(hasApplied = true)
+                onSuccess()
+            } catch (e: HttpException) {
+                _error.value = when (e.code()) {
+                    409 -> "Ya has aplicado a esta oferta"
+                    else -> "Error al aplicar: ${e.message()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Error de conexión: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
         }
     }

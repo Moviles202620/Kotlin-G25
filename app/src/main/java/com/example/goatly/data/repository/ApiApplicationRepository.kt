@@ -41,10 +41,29 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
         }
     }
 
-    suspend fun apply(offerId: Int): Boolean {
+    suspend fun apply(
+        offerId: Int,
+        applicantName: String = "",
+        career: String = "",
+        semester: Int = 0,
+        gpa: Float = 0f,
+        availability: String = "flexible",
+        motivationLetter: String = ""
+    ): Boolean {
         val token = TokenManager.getAccessToken() ?: return false
         return try {
-            api.applyToOffer("Bearer $token", ApplyRequest(offerId))
+            api.applyToOffer(
+                "Bearer $token",
+                ApplyRequest(
+                    offerId = offerId,
+                    applicantName = applicantName,
+                    career = career,
+                    semester = semester,
+                    gpa = gpa,
+                    availability = availability,
+                    motivationLetter = motivationLetter
+                )
+            )
             true
         } catch (e: Exception) {
             false

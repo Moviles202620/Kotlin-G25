@@ -160,6 +160,7 @@ fun GoatlyStudentApp(
             OfferDetailScreen(
                 offerId = offerId,
                 userName = currentUser?.name,
+                userDepartment = currentUser?.major,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -185,11 +186,28 @@ fun GoatlyStudentApp(
             )
         }
 
-        composable(Routes.APPLICATION_DETAIL) {
-            ApplicationDetailScreen(
-                appsViewModel = appsViewModel,
-                onBack = { navController.popBackStack() }
-            )
+        composable(Routes.APPLICATION_DETAIL) { backStackEntry ->
+            val applicationId = backStackEntry.arguments?.getString("applicationId")?.toIntOrNull() ?: return@composable
+            val uiState by appsViewModel.uiState.collectAsStateWithLifecycle()
+            when (uiState) {
+                is ApplicationsViewModel.UiState.Success -> {
+                    val apps = (uiState as ApplicationsViewModel.UiState.Success).response.applications
+                    val selectedApp = apps.find { it.id == applicationId }
+                    if (selectedApp != null) {
+                        appsViewModel.selectApplication(selectedApp)
+                        ApplicationDetailScreen(
+                            appsViewModel = appsViewModel,
+                            onBack = { navController.popBackStack() }
+                        )
+                    } else {
+                        navController.popBackStack()
+                    }
+                }
+                else -> {
+                    // Loading or Error state - go back
+                    navController.popBackStack()
+                }
+            }
         }
     }
 }

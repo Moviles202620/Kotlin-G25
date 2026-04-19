@@ -50,8 +50,8 @@ fun StudentHomeScreen(
     ) { granted ->
         if (granted) {
             homeViewModel.loadUserLocationAndFilter(context)
-            showFilterSheet = true
         }
+        showFilterSheet = true
     }
 
     val isFilterActive = !distanceFilter.showRemote ||

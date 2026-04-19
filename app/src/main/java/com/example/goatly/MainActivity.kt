@@ -59,9 +59,14 @@ class MainActivity : FragmentActivity() {
         val callback = object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                 authViewModel.restoreSession {
-                    profileViewModel.loadProfile()
+                    if (authViewModel.user.value != null) {
+                        profileViewModel.loadProfile()
+                        showApp(startDestination = Routes.SHELL)
+                    } else {
+                        // Token inválido o backend caído
+                        showApp(startDestination = Routes.LOGIN)
+                    }
                 }
-                showApp(startDestination = Routes.SHELL)
             }
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                 showApp(startDestination = Routes.LOGIN)

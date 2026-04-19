@@ -43,10 +43,13 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
 
     suspend fun apply(
         offerId: Int,
-        offerTitle: String,
-        applicantName: String,
-        career: String,
-        motivationLetter: String
+        offerTitle: String = "",
+        applicantName: String = "",
+        career: String = "",
+        semester: Int = 0,
+        gpa: Float = 0f,
+        availability: String = "flexible",
+        motivationLetter: String = ""
     ): Boolean {
         val token = TokenManager.getAccessToken() ?: return false
         return try {
@@ -57,9 +60,9 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
                     offerTitle = offerTitle,
                     applicantName = applicantName,
                     career = career,
-                    semester = 1,
-                    gpa = 0.0f,
-                    availability = "flexible",
+                    semester = semester,
+                    gpa = gpa,
+                    availability = availability,
                     motivationLetter = motivationLetter
                 )
             )

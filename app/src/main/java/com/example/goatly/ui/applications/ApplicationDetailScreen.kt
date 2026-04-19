@@ -1,8 +1,10 @@
 package com.example.goatly.ui.applications
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -154,6 +157,118 @@ fun ApplicationDetailScreen(
                     )
                 }
             }
+
+            // Tu perfil (student profile section)
+            if (!item.applicantName.isNullOrBlank()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+                    shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            "TU PERFIL",
+                            fontSize = 12.sp, letterSpacing = 1.4.sp,
+                            color = Color(0xFF9AA4B2), fontWeight = FontWeight.W800
+                        )
+                        if (!item.applicantName.isNullOrBlank()) {
+                            ProfileField("Nombre", item.applicantName!!)
+                            HorizontalDivider(color = AppColors.Border)
+                        }
+                        if (!item.career.isNullOrBlank()) {
+                            ProfileField("Carrera", item.career!!)
+                            HorizontalDivider(color = AppColors.Border)
+                        }
+                        if (item.semester != null) {
+                            ProfileField("Semestre", item.semester.toString())
+                            HorizontalDivider(color = AppColors.Border)
+                        }
+                        if (item.gpa != null) {
+                            ProfileField("Promedio (GPA)", String.format("%.2f", item.gpa))
+                            HorizontalDivider(color = AppColors.Border)
+                        }
+                        if (!item.availability.isNullOrBlank()) {
+                            ProfileField("Disponibilidad", item.availability!!)
+                            HorizontalDivider(color = AppColors.Border)
+                        }
+                        if (!item.motivationLetter.isNullOrBlank()) {
+                            Text("Carta de motivación", fontSize = 13.sp, color = AppColors.GreyText)
+                            Text(
+                                item.motivationLetter!!,
+                                fontSize = 15.sp,
+                                color = AppColors.DarkText,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Performance indicators (if completed)
+            if (item.isCompleted && item.rating != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+                    shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            "INDICADORES DE DESEMPEÑO",
+                            fontSize = 12.sp, letterSpacing = 1.4.sp,
+                            color = Color(0xFF9AA4B2), fontWeight = FontWeight.W800
+                        )
+                        PerformanceBadge(item.rating!!)
+                        HorizontalDivider(color = AppColors.Border)
+                        Text("Desglose de evaluaciones", fontSize = 13.sp, color = AppColors.GreyText, fontWeight = FontWeight.W700)
+                        Spacer(Modifier.height(8.dp))
+                        if (item.ratingPunctuality != null) {
+                            RatingBar("Puntualidad", item.ratingPunctuality!!)
+                        }
+                        if (item.ratingQuality != null) {
+                            RatingBar("Calidad", item.ratingQuality!!)
+                        }
+                        if (item.ratingAttitude != null) {
+                            RatingBar("Actitud", item.ratingAttitude!!)
+                        }
+                    }
+                }
+            }
+
+            // Feedback from staff (if completed)
+            if (item.isCompleted && !item.ratingFeedback.isNullOrBlank()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+                    shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            "FEEDBACK DEL STAFF",
+                            fontSize = 12.sp, letterSpacing = 1.4.sp,
+                            color = Color(0xFF9AA4B2), fontWeight = FontWeight.W800
+                        )
+                        Text(
+                            item.ratingFeedback!!,
+                            fontSize = 15.sp,
+                            color = AppColors.DarkText,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -166,6 +281,83 @@ private fun DetailRow(icon: ImageVector, label: String, value: String) {
         Column {
             Text(label, fontSize = 13.sp, color = AppColors.GreyText)
             Text(value, fontSize = 16.sp, fontWeight = FontWeight.W700)
+        }
+    }
+}
+
+@Composable
+private fun ProfileField(label: String, value: String) {
+    Column {
+        Text(label, fontSize = 13.sp, color = AppColors.GreyText)
+        Text(value, fontSize = 15.sp, fontWeight = FontWeight.W700, color = AppColors.DarkText)
+    }
+}
+
+@Composable
+private fun PerformanceBadge(rating: Float) {
+    val (badgeColor, badgeIcon, badgeText) = when {
+        rating >= 4.5f -> Triple(AppColors.Success, "⭐", "Excelente")
+        rating >= 3.5f -> Triple(AppColors.PrimaryYellow, "✓", "Muy Bueno")
+        rating >= 2.5f -> Triple(Color(0xFFFFB800), "→", "Bueno")
+        else -> Triple(AppColors.Danger, "!", "Necesita mejora")
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, badgeColor.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+        shape = RoundedCornerShape(12.dp),
+        color = badgeColor.copy(alpha = 0.1f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(badgeColor.copy(alpha = 0.2f), androidx.compose.foundation.shape.CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(badgeIcon, fontSize = 28.sp)
+            }
+            Column {
+                Text("Calificación General", fontSize = 12.sp, color = AppColors.GreyText)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(String.format("%.1f", rating), fontSize = 24.sp, fontWeight = FontWeight.W900, color = badgeColor)
+                    Text(badgeText, fontSize = 14.sp, fontWeight = FontWeight.W800, color = badgeColor)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingBar(label: String, value: Float) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, fontSize = 13.sp, color = AppColors.GreyText)
+            Text(String.format("%.1f/5.0", value), fontSize = 13.sp, fontWeight = FontWeight.W700, color = AppColors.DarkText)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .background(AppColors.Border, RoundedCornerShape(3.dp))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction = (value / 5f).coerceIn(0f, 1f))
+                    .background(AppColors.Success, RoundedCornerShape(3.dp))
+            )
         }
     }
 }

@@ -87,6 +87,13 @@ fun MyApplicationsScreen(
                         StatsCard(stats = response.stats)
                     }
 
+                    // BQ 2 top offers Section - Moved to top for visibility
+                    if (topOffers.isNotEmpty()) {
+                        item {
+                            TopOffersCard(topOffers = topOffers)
+                        }
+                    }
+
                     // Filter row
                     item {
                         FilterRow(activeFilter = activeFilter, onFilter = { appsViewModel.load(it) })
@@ -103,14 +110,6 @@ fun MyApplicationsScreen(
                                 app = app,
                                 onClick = { onNavigateToDetail(app) }
                             )
-                        }
-                    }
-
-                    // BQ 2 top offers Section
-                    if (topOffers.isNotEmpty()) {
-                        item {
-                            Spacer(Modifier.height(8.dp))
-                            TopOffersCard(topOffers = topOffers)
                         }
                     }
                 }
@@ -216,29 +215,96 @@ private fun ApplicationCard(app: MyApplicationItemDto, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)).clickable { onClick() },
         shape = RoundedCornerShape(14.dp), color = AppColors.Surface
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(AppColors.PrimaryYellow.copy(alpha = 0.15f), CircleShape)
-                    .border(1.dp, AppColors.PrimaryYellow.copy(alpha = 0.35f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("G", fontWeight = FontWeight.W900, color = Color(0xFF9A5B00))
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .background(AppColors.PrimaryYellow.copy(alpha = 0.15f), CircleShape)
+                        .border(1.dp, AppColors.PrimaryYellow.copy(alpha = 0.35f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("G", fontWeight = FontWeight.W900, color = Color(0xFF9A5B00))
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(app.offer.title, fontSize = 17.sp, fontWeight = FontWeight.W900)
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "$copFormatted · ${app.offer.durationHours}h",
+                        color = AppColors.GreyText, fontSize = 13.sp
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text("Aplicado el $dateLabel", color = AppColors.GreyText, fontSize = 13.sp)
+                }
+                Text(statusLabel, fontWeight = FontWeight.W900, color = statusColor, fontSize = 12.sp)
             }
-            Spacer(Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(app.offer.title, fontSize = 17.sp, fontWeight = FontWeight.W900)
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    "$copFormatted · ${app.offer.durationHours}h",
-                    color = AppColors.GreyText, fontSize = 13.sp
-                )
-                Spacer(Modifier.height(2.dp))
-                Text("Aplicado el $dateLabel", color = AppColors.GreyText, fontSize = 13.sp)
+
+            // Performance badges (if completed and has rating)
+            if (app.isCompleted && app.rating != null) {
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = AppColors.Border)
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PerformanceBadgeSmall(rating = app.rating!!)
+                    if (app.gpa != null && app.gpa!! >= 4.0f) {
+                        BadgeChip("Alto GPA", AppColors.Success)
+                    }
+                    if (app.semester != null && app.semester!! >= 8) {
+                        BadgeChip("Avanzado", AppColors.PrimaryYellow)
+                    }
+                }
             }
-            Text(statusLabel, fontWeight = FontWeight.W900, color = statusColor, fontSize = 12.sp)
         }
+    }
+}
+
+@Composable
+private fun PerformanceBadgeSmall(rating: Float) {
+    val badgeColor = when {
+        rating >= 4.5f -> AppColors.Success
+        rating >= 3.5f -> AppColors.PrimaryYellow
+        rating >= 2.5f -> Color(0xFFFFB800)
+        else -> AppColors.Danger
+    }
+
+    Surface(
+        modifier = Modifier
+            .background(badgeColor.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+            .border(0.5.dp, badgeColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        color = Color.Transparent
+    ) {
+        Text(
+            "⭐ ${String.format("%.1f", rating)}",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.W800,
+            color = badgeColor,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun BadgeChip(text: String, color: Color) {
+    Surface(
+        modifier = Modifier
+            .background(color.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+            .border(0.5.dp, color.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        color = Color.Transparent
+    ) {
+        Text(
+            text,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.W700,
+            color = color,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }
 

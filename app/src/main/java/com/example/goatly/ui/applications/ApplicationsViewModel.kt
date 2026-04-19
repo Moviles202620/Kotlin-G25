@@ -107,6 +107,8 @@ class ApplicationsViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val result = RetrofitClient.api.getTopOffers()
+                android.util.Log.d("GoatlyNet", "loadTopOffers success: ${result.size} offers")
+                result.forEach { android.util.Log.d("GoatlyNet", "  - ${it.title}: ${it.total} apps") }
                 _topOffers.value = result.map { TopOfferItem(it.title, it.total) }
             } catch (e: Exception) {
                 android.util.Log.e("GoatlyNet", "loadTopOffers failed: ${e.message}")

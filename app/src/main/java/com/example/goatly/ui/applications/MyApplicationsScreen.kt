@@ -87,6 +87,13 @@ fun MyApplicationsScreen(
                         StatsCard(stats = response.stats)
                     }
 
+                    // BQ 2 top offers Section - Moved to top for visibility
+                    if (topOffers.isNotEmpty()) {
+                        item {
+                            TopOffersCard(topOffers = topOffers)
+                        }
+                    }
+
                     // Filter row
                     item {
                         FilterRow(activeFilter = activeFilter, onFilter = { appsViewModel.load(it) })
@@ -103,14 +110,6 @@ fun MyApplicationsScreen(
                                 app = app,
                                 onClick = { onNavigateToDetail(app) }
                             )
-                        }
-                    }
-
-                    // BQ 2 top offers Section
-                    if (topOffers.isNotEmpty()) {
-                        item {
-                            Spacer(Modifier.height(8.dp))
-                            TopOffersCard(topOffers = topOffers)
                         }
                     }
                 }

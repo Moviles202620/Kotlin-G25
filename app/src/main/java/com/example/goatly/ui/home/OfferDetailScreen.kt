@@ -66,6 +66,12 @@ fun OfferDetailScreen(
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
+    DisposableEffect(offerId) {
+        onDispose {
+            detailViewModel.stopTracking(context)
+        }
+    }
+
     val lat = state.latitude ?: 4.6015
     val lng = state.longitude ?: -74.0657
 
@@ -442,7 +448,6 @@ fun OsmMapView(
                 controller.setZoom(15.0)
                 controller.setCenter(GeoPoint(latitude, longitude))
 
-                // Marcador de la oferta (verde por defecto)
                 val offerMarker = Marker(this)
                 offerMarker.position = GeoPoint(latitude, longitude)
                 offerMarker.title = title

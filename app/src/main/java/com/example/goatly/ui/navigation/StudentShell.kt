@@ -34,7 +34,7 @@ fun StudentShell(
             NavigationBar(containerColor = AppColors.Surface) {
                 listOf(
                     Triple(Icons.Default.Home, "Inicio", 0),
-                    Triple(Icons.AutoMirrored.Filled.List, "Mis apps", 1),
+                    Triple(Icons.AutoMirrored.Filled.List, "Mis aplicaciones", 1),
                     Triple(Icons.Default.Person, "Perfil", 2)
                 ).forEach { (icon, label, index) ->
                     NavigationBarItem(

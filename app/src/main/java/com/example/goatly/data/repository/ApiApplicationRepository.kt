@@ -32,11 +32,11 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
                     status = when (item.status) {
                         "accepted" -> ApplicationStatus.ACCEPTED
                         "rejected" -> ApplicationStatus.REJECTED
-                        else       -> ApplicationStatus.PENDING
+                        else -> ApplicationStatus.PENDING
                     }
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             MockApplicationRepository().getAll()
         }
     }
@@ -67,7 +67,7 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
                 )
             )
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }

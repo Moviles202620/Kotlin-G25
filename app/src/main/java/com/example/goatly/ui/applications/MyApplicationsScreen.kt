@@ -37,10 +37,12 @@ fun MyApplicationsScreen(
     val uiState by appsViewModel.uiState.collectAsState()
     val activeFilter by appsViewModel.activeFilter.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val topOffers by appsViewModel.topOffers.collectAsState()
 
     // Carga inicial al entrar a la pantalla
     LaunchedEffect(Unit) {
         appsViewModel.load()
+        appsViewModel.loadTopOffers()
     }
 
     // One-time navigation event for 401
@@ -101,6 +103,14 @@ fun MyApplicationsScreen(
                                 app = app,
                                 onClick = { onNavigateToDetail(app) }
                             )
+                        }
+                    }
+
+                    // BQ 2 top offers Section
+                    if (topOffers.isNotEmpty()) {
+                        item {
+                            Spacer(Modifier.height(8.dp))
+                            TopOffersCard(topOffers = topOffers)
                         }
                     }
                 }
@@ -322,5 +332,66 @@ private fun EmptyApplications(modifier: Modifier = Modifier) {
             "No hay aplicaciones para este filtro.",
             fontSize = 18.sp, color = AppColors.GreyText, lineHeight = 24.sp
         )
+    }
+}
+
+@Composable
+private fun TopOffersCard(topOffers: List<ApplicationsViewModel.TopOfferItem>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                "OFERTAS MÁS SOLICITADAS",
+                fontSize = 12.sp,
+                letterSpacing = 1.4.sp,
+                color = Color(0xFF9AA4B2),
+                fontWeight = FontWeight.W800
+            )
+            Spacer(Modifier.height(14.dp))
+            topOffers.forEachIndexed { index, offer ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(AppColors.PrimaryYellow.copy(alpha = 0.15f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "${index + 1}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.W900,
+                            color = Color(0xFF9A5B00)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        offer.title,
+                        modifier = Modifier.weight(1f),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.W600
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = AppColors.PrimaryYellow.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            "${offer.total} apps",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.W800,
+                            color = Color(0xFF9A5B00)
+                        )
+                    }
+                }
+                if (index < topOffers.size - 1) {
+                    Divider(color = AppColors.Border, thickness = 0.5.dp)
+                }
+            }
+        }
     }
 }

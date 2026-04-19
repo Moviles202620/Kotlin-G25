@@ -132,6 +132,7 @@ class OfferDetailViewModel(
 
                 val request = ApplyRequest(
                     offerId = offerIdInt,
+                    offerTitle = _state.value.title,
                     applicantName = applicantName,
                     career = career,
                     semester = semester,

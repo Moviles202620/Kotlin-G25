@@ -43,6 +43,7 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
 
     suspend fun apply(
         offerId: Int,
+        offerTitle: String = "",
         applicantName: String = "",
         career: String = "",
         semester: Int = 0,
@@ -56,6 +57,7 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
                 "Bearer $token",
                 ApplyRequest(
                     offerId = offerId,
+                    offerTitle = offerTitle,
                     applicantName = applicantName,
                     career = career,
                     semester = semester,

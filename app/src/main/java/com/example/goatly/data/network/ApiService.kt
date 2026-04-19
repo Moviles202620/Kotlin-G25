@@ -12,7 +12,10 @@ import retrofit2.http.Query
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
 @JsonClass(generateAdapter = true)
-data class LoginRequest(val email: String, val password: String)
+data class LoginRequest(
+    val email: String,
+    val password: String
+)
 
 @JsonClass(generateAdapter = true)
 data class LoginUserData(
@@ -137,6 +140,7 @@ data class MyApplicationsResponseDto(
 @JsonClass(generateAdapter = true)
 data class ApplyRequest(
     @field:Json(name = "offer_id") val offerId: Int,
+    @field:Json(name = "offer_title") val offerTitle: String = "",
     @field:Json(name = "applicant_name") val applicantName: String,
     val career: String,
     val semester: Int,

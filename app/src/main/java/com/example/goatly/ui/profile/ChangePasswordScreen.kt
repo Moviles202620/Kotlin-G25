@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.sp
 import com.example.goatly.ui.auth.GoatlyTextField
 import com.example.goatly.ui.theme.AppColors
 
+private val emojiRegex = Regex("[\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u27BF]")
+private val passwordRegex = Regex("^\\S+$")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangePasswordScreen(
@@ -79,7 +82,12 @@ fun ChangePasswordScreen(
                             value = currentPassword,
                             onValueChange = {
                                 currentPassword = it
-                                currentPasswordError = if (it.isBlank()) "Campo requerido" else null
+                                currentPasswordError = when {
+                                    it.isBlank() -> "Campo requerido"
+                                    emojiRegex.containsMatchIn(it) -> "No se permiten emojis"
+                                    !passwordRegex.matches(it) -> "No se permiten espacios"
+                                    else -> null
+                                }
                             },
                             placeholder = "••••••••",
                             isPassword = true
@@ -96,11 +104,16 @@ fun ChangePasswordScreen(
                                 newPassword = it
                                 newPasswordError = when {
                                     it.isBlank() -> "Campo requerido"
+                                    emojiRegex.containsMatchIn(it) -> "No se permiten emojis"
+                                    !passwordRegex.matches(it) -> "No se permiten espacios"
                                     it.length < 6 -> "Mínimo 6 caracteres"
                                     else -> null
                                 }
                                 if (confirmPassword.isNotBlank()) {
-                                    confirmPasswordError = if (it != confirmPassword) "Las contraseñas no coinciden" else null
+                                    confirmPasswordError = when {
+                                        it != confirmPassword -> "Las contraseñas no coinciden"
+                                        else -> null
+                                    }
                                 }
                             },
                             placeholder = "Mínimo 6 caracteres",
@@ -118,6 +131,8 @@ fun ChangePasswordScreen(
                                 confirmPassword = it
                                 confirmPasswordError = when {
                                     it.isBlank() -> "Campo requerido"
+                                    emojiRegex.containsMatchIn(it) -> "No se permiten emojis"
+                                    !passwordRegex.matches(it) -> "No se permiten espacios"
                                     it != newPassword -> "Las contraseñas no coinciden"
                                     else -> null
                                 }
@@ -132,14 +147,23 @@ fun ChangePasswordScreen(
 
             Button(
                 onClick = {
-                    currentPasswordError = if (currentPassword.isBlank()) "Campo requerido" else null
+                    currentPasswordError = when {
+                        currentPassword.isBlank() -> "Campo requerido"
+                        emojiRegex.containsMatchIn(currentPassword) -> "No se permiten emojis"
+                        !passwordRegex.matches(currentPassword) -> "No se permiten espacios"
+                        else -> null
+                    }
                     newPasswordError = when {
                         newPassword.isBlank() -> "Campo requerido"
+                        emojiRegex.containsMatchIn(newPassword) -> "No se permiten emojis"
+                        !passwordRegex.matches(newPassword) -> "No se permiten espacios"
                         newPassword.length < 6 -> "Mínimo 6 caracteres"
                         else -> null
                     }
                     confirmPasswordError = when {
                         confirmPassword.isBlank() -> "Campo requerido"
+                        emojiRegex.containsMatchIn(confirmPassword) -> "No se permiten emojis"
+                        !passwordRegex.matches(confirmPassword) -> "No se permiten espacios"
                         confirmPassword != newPassword -> "Las contraseñas no coinciden"
                         else -> null
                     }

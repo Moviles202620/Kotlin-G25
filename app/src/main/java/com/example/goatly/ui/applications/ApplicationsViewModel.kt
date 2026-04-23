@@ -55,7 +55,8 @@ class ApplicationsViewModel : ViewModel() {
             try {
                 val response = RetrofitClient.api.getMyApplications(
                     token = "Bearer $token",
-                    status = statusFilter
+                    status = statusFilter,
+                    detailed = true
                 )
                 _uiState.value = UiState.Success(response)
             } catch (e: HttpException) {
@@ -78,12 +79,10 @@ class ApplicationsViewModel : ViewModel() {
                 return@launch
             }
             try {
-                RetrofitClient.api.applyToOffer(
-                    token = "Bearer $token",
-                    request = ApplyRequest(offerId = offerId)
-                )
-                _applyResult.tryEmit(Result.success(Unit))
-                refresh()
+                // This method is deprecated - applications must be made with full details via OfferDetailScreen
+                // Keeping for backward compatibility but won't actually be used
+                _applyResult.tryEmit(Result.failure(Exception("Use OfferDetailScreen to apply with full details")))
+                return@launch
             } catch (e: HttpException) {
                 if (e.code() == 401) {
                     _navigateToLogin.tryEmit(Unit)
@@ -93,6 +92,26 @@ class ApplicationsViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 _applyResult.tryEmit(Result.failure(e))
+            }
+        }
+    }
+
+    //BQ: Top Offers
+
+    data class TopOfferItem(val title: String, val total: Int)
+
+    private val _topOffers = MutableStateFlow<List<TopOfferItem>>(emptyList())
+    val topOffers: StateFlow<List<TopOfferItem>> = _topOffers.asStateFlow()
+
+    fun loadTopOffers() {
+        viewModelScope.launch {
+            try {
+                val result = RetrofitClient.api.getTopOffers()
+                android.util.Log.d("GoatlyNet", "loadTopOffers success: ${result.size} offers")
+                result.forEach { android.util.Log.d("GoatlyNet", "  - ${it.title}: ${it.total} apps") }
+                _topOffers.value = result.map { TopOfferItem(it.title, it.total) }
+            } catch (e: Exception) {
+                android.util.Log.e("GoatlyNet", "loadTopOffers failed: ${e.message}")
             }
         }
     }

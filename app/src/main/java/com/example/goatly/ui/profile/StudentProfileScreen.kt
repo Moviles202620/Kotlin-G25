@@ -31,6 +31,7 @@ fun StudentProfileScreen(
 ) {
     LaunchedEffect(Unit) {
         profileViewModel.loadProfile()
+        appsViewModel.refresh()
     }
     val appsUiState by appsViewModel.uiState.collectAsState()
     val user by profileViewModel.user.collectAsState()

@@ -29,6 +29,9 @@ private val VALID_DEPARTMENTS = listOf(
 
 private val LANGUAGE_OPTIONS = listOf("es" to "Español", "en" to "English")
 
+private val emojiRegex = Regex("[\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u27BF]")
+private val nameRegex = Regex("^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+$")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileScreen(
@@ -101,7 +104,12 @@ fun EditProfileScreen(
                             value = name,
                             onValueChange = {
                                 name = it
-                                nameError = if (it.isBlank()) "Campo requerido" else null
+                                nameError = when {
+                                    it.isBlank() -> "Campo requerido"
+                                    emojiRegex.containsMatchIn(it) -> "No se permiten emojis"
+                                    !nameRegex.matches(it) -> "Solo letras y espacios"
+                                    else -> null
+                                }
                             },
                             placeholder = "Tu nombre completo"
                         )
@@ -198,7 +206,12 @@ fun EditProfileScreen(
 
             Button(
                 onClick = {
-                    nameError = if (name.isBlank()) "Campo requerido" else null
+                    nameError = when {
+                        name.isBlank() -> "Campo requerido"
+                        emojiRegex.containsMatchIn(name) -> "No se permiten emojis"
+                        !nameRegex.matches(name) -> "Solo letras y espacios"
+                        else -> null
+                    }
                     if (nameError == null) {
                         profileViewModel.updateProfile(name, department, language, onBack)
                     }

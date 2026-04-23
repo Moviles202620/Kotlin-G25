@@ -12,7 +12,10 @@ import retrofit2.http.Query
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
 @JsonClass(generateAdapter = true)
-data class LoginRequest(val email: String, val password: String)
+data class LoginRequest(
+    val email: String,
+    val password: String
+)
 
 @JsonClass(generateAdapter = true)
 data class LoginUserData(
@@ -101,7 +104,23 @@ data class MyApplicationItemDto(
     @field:Json(name = "offer_id") val offerId: Int,
     val status: String,
     @field:Json(name = "created_at") val createdAt: String,
-    val offer: OfferSummaryDto
+    val offer: OfferSummaryDto,
+    // Student profile fields
+    @field:Json(name = "applicant_name") val applicantName: String? = null,
+    val career: String? = null,
+    val semester: Int? = null,
+    val gpa: Float? = null,
+    val availability: String? = null,
+    @field:Json(name = "motivation_letter") val motivationLetter: String? = null,
+    // Completion & rating fields
+    @field:Json(name = "is_completed") val isCompleted: Boolean = false,
+    @field:Json(name = "completed_at") val completedAt: String? = null,
+    val rating: Float? = null,
+    @field:Json(name = "rating_feedback") val ratingFeedback: String? = null,
+    @field:Json(name = "rating_punctuality") val ratingPunctuality: Float? = null,
+    @field:Json(name = "rating_quality") val ratingQuality: Float? = null,
+    @field:Json(name = "rating_attitude") val ratingAttitude: Float? = null,
+    @field:Json(name = "rated_at") val ratedAt: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -122,12 +141,12 @@ data class MyApplicationsResponseDto(
 data class ApplyRequest(
     @field:Json(name = "offer_id") val offerId: Int,
     @field:Json(name = "offer_title") val offerTitle: String = "",
-    @field:Json(name = "applicant_name") val applicantName: String = "",
-    val career: String = "",
-    val semester: Int = 1,
-    val gpa: Float = 0.0f,
-    val availability: String = "flexible",
-    @field:Json(name = "motivation_letter") val motivationLetter: String = ""
+    @field:Json(name = "applicant_name") val applicantName: String,
+    val career: String,
+    val semester: Int,
+    val gpa: Float,
+    val availability: String,
+    @field:Json(name = "motivation_letter") val motivationLetter: String
 )
 
 @JsonClass(generateAdapter = true)
@@ -138,6 +157,9 @@ data class ApplicationResponse(
     @field:Json(name = "student_email") val studentEmail: String,
     val status: String
 )
+
+@JsonClass(generateAdapter = true)
+data class TopOfferDto(val title: String, val total: Int)
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
@@ -179,6 +201,10 @@ interface ApiService {
     @GET("applications/my")
     suspend fun getMyApplications(
         @Header("Authorization") token: String,
-        @Query("status") status: String? = null
+        @Query("status") status: String? = null,
+        @Query("detailed") detailed: Boolean = true
     ): MyApplicationsResponseDto
+
+    @GET("applications/bq/top-offers")
+    suspend fun getTopOffers(): List<TopOfferDto>
 }

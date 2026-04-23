@@ -87,6 +87,7 @@ class AuthViewModel(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("GoatlyNet", "restoreSession failed: ${e.message}")
+                TokenManager.clear()
             }
             onDone()
         }

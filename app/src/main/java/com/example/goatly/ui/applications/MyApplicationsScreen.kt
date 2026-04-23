@@ -38,6 +38,7 @@ fun MyApplicationsScreen(
 ) {
     val uiState by appsViewModel.uiState.collectAsState()
     val activeFilter by appsViewModel.activeFilter.collectAsState()
+    val ratingStats by appsViewModel.ratingStats.collectAsState()
     val isOffline by appsViewModel.isOffline.collectAsState()
     val searchQuery by appsViewModel.searchQuery.collectAsState()
     val filteredApplications by appsViewModel.filteredApplications.collectAsState()
@@ -113,6 +114,11 @@ fun MyApplicationsScreen(
                     // BQ top offers
                     if (topOffers.isNotEmpty()) {
                         item { TopOffersCard(topOffers = topOffers) }
+                    }
+
+                    // BQ3: rating breakdown (solo si hay aplicaciones completadas)
+                    if (ratingStats != null) {
+                        item { RatingBreakdownCard(stats = ratingStats!!) }
                     }
 
                     // Search field + filter row
@@ -457,5 +463,57 @@ private fun TopOffersCard(topOffers: List<ApplicationsViewModel.TopOfferItem>) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RatingBreakdownCard(stats: ApplicationsViewModel.RatingStats) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                "MI DESEMPEÑO",
+                fontSize = 12.sp, letterSpacing = 1.4.sp,
+                color = Color(0xFF9AA4B2), fontWeight = FontWeight.W800
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Basado en ${stats.ratedCount} aplicación${if (stats.ratedCount != 1) "es" else ""} calificada${if (stats.ratedCount != 1) "s" else ""}",
+                fontSize = 12.sp, color = AppColors.GreyText
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                RatingDimension("General", stats.avgOverall, Modifier.weight(1f))
+                Box(modifier = Modifier.width(1.dp).height(56.dp).background(AppColors.Border))
+                RatingDimension("Puntual.", stats.avgPunctuality, Modifier.weight(1f))
+                Box(modifier = Modifier.width(1.dp).height(56.dp).background(AppColors.Border))
+                RatingDimension("Calidad", stats.avgQuality, Modifier.weight(1f))
+                Box(modifier = Modifier.width(1.dp).height(56.dp).background(AppColors.Border))
+                RatingDimension("Actitud", stats.avgAttitude, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingDimension(label: String, value: Float, modifier: Modifier = Modifier) {
+    val color = when {
+        value >= 4.5f -> AppColors.Success
+        value >= 3.5f -> AppColors.PrimaryYellow
+        else -> AppColors.Danger
+    }
+    Column(modifier = modifier.padding(horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(String.format("%.1f", value), fontSize = 22.sp, fontWeight = FontWeight.W900, color = color)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            label,
+            fontSize = 10.sp,
+            color = AppColors.GreyText,
+            fontWeight = FontWeight.W500,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
     }
 }

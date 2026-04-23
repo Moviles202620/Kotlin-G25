@@ -78,6 +78,18 @@ class ApplicationsViewModel : ViewModel() {
     private val _topOffers = MutableStateFlow<List<TopOfferItem>>(emptyList())
     val topOffers: StateFlow<List<TopOfferItem>> = _topOffers.asStateFlow()
 
+    // BQ3 — Rating breakdown by dimension (computed locally from Room)
+    data class RatingStats(
+        val avgOverall: Float,
+        val avgPunctuality: Float,
+        val avgQuality: Float,
+        val avgAttitude: Float,
+        val ratedCount: Int
+    )
+
+    private val _ratingStats = MutableStateFlow<RatingStats?>(null)
+    val ratingStats: StateFlow<RatingStats?> = _ratingStats.asStateFlow()
+
     init {
         // Literal 4: Flow + debounce para búsqueda reactiva
         viewModelScope.launch {
@@ -154,6 +166,9 @@ class ApplicationsViewModel : ViewModel() {
                 _uiState.value = UiState.Success(response)
                 _topOffers.value = topOffersList.map { TopOfferItem(it.title, it.total) }
 
+                // BQ3: calcular breakdown de ratings desde Room
+                loadRatingStats()
+
             } catch (e: HttpException) {
                 if (e.code() == 401) {
                     _navigateToLogin.tryEmit(Unit)
@@ -164,6 +179,19 @@ class ApplicationsViewModel : ViewModel() {
                 // Literal 6: fallback a Room cuando no hay red
                 fallbackToLocal(statusFilter)
             }
+        }
+    }
+
+    private suspend fun loadRatingStats() {
+        val breakdown = withContext(Dispatchers.IO) { dao.getRatingBreakdown() }
+        if (breakdown != null && breakdown.ratedCount > 0) {
+            _ratingStats.value = RatingStats(
+                avgOverall = breakdown.avgOverall,
+                avgPunctuality = breakdown.avgPunctuality,
+                avgQuality = breakdown.avgQuality,
+                avgAttitude = breakdown.avgAttitude,
+                ratedCount = breakdown.ratedCount
+            )
         }
     }
 
@@ -182,6 +210,7 @@ class ApplicationsViewModel : ViewModel() {
             )
             _isOffline.value = true
             _uiState.value = UiState.SuccessOffline(apps, stats)
+            loadRatingStats()
         } else {
             _isOffline.value = true
             _uiState.value = UiState.Error("Sin conexión y sin datos guardados localmente")

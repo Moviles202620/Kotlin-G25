@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goatly.ui.theme.AppColors
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,8 +52,8 @@ fun StudentHomeScreen(
     ) { granted ->
         if (granted) {
             homeViewModel.loadUserLocationAndFilter(context)
-            showFilterSheet = true
         }
+        showFilterSheet = true
     }
 
     val isFilterActive = !distanceFilter.showRemote ||
@@ -190,7 +192,11 @@ fun StudentHomeScreen(
     if (showFilterSheet) {
         ModalBottomSheet(onDismissRequest = { showFilterSheet = false }) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 48.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 Text("Filtro por distancia", fontSize = 20.sp, fontWeight = FontWeight.W800)

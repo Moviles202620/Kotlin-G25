@@ -26,4 +26,25 @@ interface ApplicationDao {
 
     @Query("DELETE FROM applications")
     suspend fun clearAll()
+
+    // BQ: average rating breakdown by dimension across completed applications
+    @Query("""
+        SELECT
+            AVG(rating) as avgOverall,
+            AVG(ratingPunctuality) as avgPunctuality,
+            AVG(ratingQuality) as avgQuality,
+            AVG(ratingAttitude) as avgAttitude,
+            COUNT(*) as ratedCount
+        FROM applications
+        WHERE isCompleted = 1 AND rating IS NOT NULL
+    """)
+    suspend fun getRatingBreakdown(): RatingBreakdown?
 }
+
+data class RatingBreakdown(
+    val avgOverall: Float,
+    val avgPunctuality: Float,
+    val avgAttitude: Float,
+    val avgQuality: Float,
+    val ratedCount: Int
+)

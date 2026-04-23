@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.goatly.data.network.ApplyRequest
+import com.example.goatly.data.network.CalendarSyncManager
 import com.example.goatly.data.network.RetrofitClient
 import com.example.goatly.data.network.TokenManager
 import com.example.goatly.data.network.LocationManager
@@ -11,6 +12,8 @@ import com.example.goatly.data.repository.ApiApplicationRepository
 import com.example.goatly.data.repository.ApiOfferRepository
 import com.example.goatly.data.repository.RepositoryProvider
 import com.google.android.gms.location.LocationCallback
+import kotlinx.coroutines.async
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,7 +42,14 @@ class OfferDetailViewModel(
         val isOnSite: Boolean = false,
         val distanceText: String? = null,
         val userLatitude: Double? = null,
-        val userLongitude: Double? = null
+        val userLongitude: Double? = null,
+        // Sprint 3: Feature Calendar Sync — state fields for BQ indicator
+        val isAddedToCalendar: Boolean = false,
+        val isCalendarPending: Boolean = false,
+        val offerDateMillis: Long = 0L,
+        val offerDurationHours: Int = 0,
+        val offerLocationText: String = ""
+        // Sprint 3: Feature Calendar Sync — END state fields
     )
 
     private val _state = MutableStateFlow(OfferDetailUiState())
@@ -69,6 +79,11 @@ class OfferDetailViewModel(
                 false
             }
 
+            // Sprint 3: Feature Calendar Sync — load persisted calendar state
+            val isSynced = CalendarSyncManager.isOfferSynced(context, offer.id)
+            val isPending = CalendarSyncManager.isOfferPending(context, offer.id)
+            // Sprint 3: Feature Calendar Sync — END
+
             _state.value = OfferDetailUiState(
                 id = offer.id,
                 title = offer.title,
@@ -82,7 +97,12 @@ class OfferDetailViewModel(
                 latitude = offerLat,
                 longitude = offerLng,
                 isOnSite = offer.isOnSite,
-                distanceText = null
+                distanceText = null,
+                offerDateMillis = offer.dateTime.time,
+                offerDurationHours = offer.durationHours,
+                offerLocationText = if (offer.isOnSite) "Presencial - Universidad de los Andes" else "Remoto",
+                isAddedToCalendar = isSynced,
+                isCalendarPending = isPending
             )
 
             if (offer.isOnSite) {
@@ -128,7 +148,13 @@ class OfferDetailViewModel(
         }
     }
 
-    fun applyWithDetails(
+    // Sprint 3: Feature Calendar Sync — applyAndSyncCalendar
+    // Runs two parallel coroutines using async/await:
+    // Coroutine 1: POST application to backend
+    // Coroutine 2: Insert event into device calendar (only if addToCalendar = true)
+    // This is the multi-threading strategy for Sprint 3.
+    fun applyAndSyncCalendar(
+        context: Context,
         offerId: String,
         applicantName: String,
         career: String,
@@ -136,6 +162,7 @@ class OfferDetailViewModel(
         gpa: Float,
         availability: String,
         motivationLetter: String,
+        addToCalendar: Boolean,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
@@ -165,9 +192,35 @@ class OfferDetailViewModel(
                     motivationLetter = motivationLetter
                 )
 
-                RetrofitClient.api.applyToOffer("Bearer $token", request)
-                _state.value = _state.value.copy(hasApplied = true)
+                // Sprint 3: Multi-threading — parallel coroutines with async/await
+                val backendJob = async(Dispatchers.IO) {
+                    RetrofitClient.api.applyToOffer("Bearer $token", request)
+                }
+
+                val calendarJob = async(Dispatchers.IO) {
+                    if (addToCalendar) {
+                        CalendarSyncManager.addOfferToCalendar(
+                            context = context,
+                            offerId = offerId,
+                            title = _state.value.title,
+                            dateTimeMillis = _state.value.offerDateMillis,
+                            durationHours = _state.value.offerDurationHours,
+                            location = _state.value.offerLocationText
+                        )
+                    } else false
+                }
+
+                backendJob.await()
+                val calendarSuccess = calendarJob.await()
+                // Sprint 3: Multi-threading — END
+
+                _state.value = _state.value.copy(
+                    hasApplied = true,
+                    isAddedToCalendar = addToCalendar && calendarSuccess,
+                    isCalendarPending = addToCalendar && !calendarSuccess
+                )
                 onSuccess()
+
             } catch (e: HttpException) {
                 _error.value = when (e.code()) {
                     409 -> "Ya has aplicado a esta oferta"
@@ -180,4 +233,5 @@ class OfferDetailViewModel(
             }
         }
     }
+    // Sprint 3: Feature Calendar Sync — END applyAndSyncCalendar
 }

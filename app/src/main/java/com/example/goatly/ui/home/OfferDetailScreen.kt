@@ -20,6 +20,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,10 +48,12 @@ import org.osmdroid.views.overlay.Marker
 fun OfferDetailScreen(
     offerId: String,
     userName: String?,
+    userDepartment: String? = null,
     detailViewModel: OfferDetailViewModel = viewModel(),
     onBack: () -> Unit
 ) {
     val state by detailViewModel.state.collectAsState()
+    var showApplyDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -58,6 +64,12 @@ fun OfferDetailScreen(
 
     LaunchedEffect(offerId) {
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    DisposableEffect(offerId) {
+        onDispose {
+            detailViewModel.stopTracking(context)
+        }
     }
 
     val lat = state.latitude ?: 4.6015
@@ -157,7 +169,7 @@ fun OfferDetailScreen(
                 }
             } else {
                 Button(
-                    onClick = { detailViewModel.apply(offerId, userName ?: "Estudiante Uniandes") },
+                    onClick = { showApplyDialog = true },
                     modifier = Modifier.fillMaxWidth().height(58.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryYellow, contentColor = Color.Black),
                     shape = RoundedCornerShape(12.dp)
@@ -166,9 +178,243 @@ fun OfferDetailScreen(
                 }
             }
 
+            if (showApplyDialog) {
+                ApplyApplicationDialog(
+                    offerId = offerId,
+                    userName = userName ?: "Estudiante",
+                    userDepartment = userDepartment ?: "Ingeniería",
+                    detailViewModel = detailViewModel,
+                    onDismiss = { showApplyDialog = false },
+                    onSuccess = {
+                        showApplyDialog = false
+                        onBack()
+                    }
+                )
+            }
+
             Spacer(Modifier.height(8.dp))
         }
     }
+}
+
+private val emojiRegex = Regex("[\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u27BF]")
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ApplyApplicationDialog(
+    offerId: String,
+    userName: String,
+    userDepartment: String,
+    detailViewModel: OfferDetailViewModel,
+    onDismiss: () -> Unit,
+    onSuccess: () -> Unit
+) {
+    val isLoading by detailViewModel.isLoading.collectAsState()
+
+    var applicantName by remember { mutableStateOf(userName ?: "") }
+    var career by remember { mutableStateOf(userDepartment ?: "") }
+    var semester by remember { mutableStateOf("") }
+    var gpa by remember { mutableStateOf("") }
+    var availability by remember { mutableStateOf("") }
+    var motivationLetter by remember { mutableStateOf("") }
+    var expandedAvailability by remember { mutableStateOf(false) }
+
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var semesterError by remember { mutableStateOf<String?>(null) }
+    var gpaError by remember { mutableStateOf<String?>(null) }
+    var availabilityError by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Información de la Aplicación", fontWeight = FontWeight.W800) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Nombre del postulante
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Nombre del postulante", fontSize = 13.sp, fontWeight = FontWeight.W700)
+                    OutlinedTextField(
+                        value = applicantName,
+                        onValueChange = {
+                            applicantName = it
+                            nameError = when {
+                                it.isBlank() -> "Campo requerido"
+                                emojiRegex.containsMatchIn(it) -> "No se permiten emojis"
+                                else -> null
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = OutlinedTextFieldDefaults.colors()
+                    )
+                    nameError?.let { Text(it, color = Color.Red, fontSize = 11.sp) }
+                }
+
+                // Carrera
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Carrera", fontSize = 13.sp, fontWeight = FontWeight.W700)
+                    OutlinedTextField(
+                        value = career,
+                        onValueChange = { career = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = OutlinedTextFieldDefaults.colors()
+                    )
+                }
+
+                // Semestre
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Semestre (1-12)", fontSize = 13.sp, fontWeight = FontWeight.W700)
+                    OutlinedTextField(
+                        value = semester,
+                        onValueChange = {
+                            semester = it
+                            semesterError = when {
+                                it.isBlank() -> "Campo requerido"
+                                it.toIntOrNull() == null -> "Debe ser un número"
+                                it.toInt() !in 1..12 -> "Debe estar entre 1 y 12"
+                                else -> null
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(8.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors()
+                    )
+                    semesterError?.let { Text(it, color = Color.Red, fontSize = 11.sp) }
+                }
+
+                // GPA
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Promedio (GPA) 0.0 - 5.0", fontSize = 13.sp, fontWeight = FontWeight.W700)
+                    OutlinedTextField(
+                        value = gpa,
+                        onValueChange = {
+                            gpa = it
+                            gpaError = when {
+                                it.isBlank() -> "Campo requerido"
+                                it.toFloatOrNull() == null -> "Debe ser un número"
+                                it.toFloat() !in 0f..5f -> "Debe estar entre 0.0 y 5.0"
+                                else -> null
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(8.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors()
+                    )
+                    gpaError?.let { Text(it, color = Color.Red, fontSize = 11.sp) }
+                }
+
+                // Disponibilidad
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Disponibilidad", fontSize = 13.sp, fontWeight = FontWeight.W700)
+                    ExposedDropdownMenuBox(
+                        expanded = expandedAvailability,
+                        onExpandedChange = { expandedAvailability = !expandedAvailability }
+                    ) {
+                        OutlinedTextField(
+                            value = availability,
+                            onValueChange = {},
+                            readOnly = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
+                            shape = RoundedCornerShape(8.dp),
+                            trailingIcon = {
+                                Icon(
+                                    if (expandedAvailability) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = null
+                                )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedAvailability,
+                            onDismissRequest = { expandedAvailability = false }
+                        ) {
+                            listOf("flexible", "fixed", "part-time").forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option.replaceFirstChar { it.uppercase() }) },
+                                    onClick = {
+                                        availability = option
+                                        availabilityError = null
+                                        expandedAvailability = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    availabilityError?.let { Text(it, color = Color.Red, fontSize = 11.sp) }
+                }
+
+                // Carta de motivación
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Carta de Motivación", fontSize = 13.sp, fontWeight = FontWeight.W700)
+                    OutlinedTextField(
+                        value = motivationLetter,
+                        onValueChange = { motivationLetter = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        placeholder = { Text("Cuéntanos por qué te interesa esta oferta...") },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = OutlinedTextFieldDefaults.colors()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    // Validate availability before submitting
+                    if (availability.isBlank()) {
+                        availabilityError = "Debe seleccionar una disponibilidad"
+                    } else {
+                        availabilityError = null
+                    }
+
+                    if (validateForm(nameError, semesterError, gpaError) && availabilityError == null) {
+                        detailViewModel.applyWithDetails(
+                            offerId = offerId,
+                            applicantName = applicantName,
+                            career = career,
+                            semester = semester.toInt(),
+                            gpa = gpa.toFloat(),
+                            availability = availability,
+                            motivationLetter = motivationLetter,
+                            onSuccess = onSuccess
+                        )
+                    }
+                },
+                enabled = !isLoading && nameError == null && semesterError == null && gpaError == null && availability.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryYellow)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.Black)
+                } else {
+                    Text("Aplicar", color = Color.Black, fontWeight = FontWeight.W800)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+private fun validateForm(nameError: String?, semesterError: String?, gpaError: String?): Boolean {
+    return nameError == null && semesterError == null && gpaError == null
 }
 
 fun createColoredMarkerBitmap(color: Int): Bitmap {
@@ -202,7 +448,6 @@ fun OsmMapView(
                 controller.setZoom(15.0)
                 controller.setCenter(GeoPoint(latitude, longitude))
 
-                // Marcador de la oferta (verde por defecto)
                 val offerMarker = Marker(this)
                 offerMarker.position = GeoPoint(latitude, longitude)
                 offerMarker.title = title

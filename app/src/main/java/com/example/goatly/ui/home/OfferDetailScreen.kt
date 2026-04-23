@@ -64,9 +64,6 @@ fun OfferDetailScreen(
 
     LaunchedEffect(offerId) {
         locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
-        // Sprint 3: Feature Calendar Sync — load calendar state for BQ indicator
-        detailViewModel.loadCalendarState(context, offerId)
-        // Sprint 3: Feature Calendar Sync — END
     }
 
     DisposableEffect(offerId) {
@@ -158,7 +155,47 @@ fun OfferDetailScreen(
 
             Spacer(Modifier.weight(1f))
 
-            // Botón aplicar / estado
+            // Sprint 3: Feature Calendar Sync — BQ indicator
+            // Visible independently of apply status
+            // Answers BQ: "Which of the student's applied offers have been added to their calendar?"
+            if (state.isAddedToCalendar) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Success.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                    shape = RoundedCornerShape(12.dp),
+                    color = AppColors.Success.copy(alpha = 0.08f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = AppColors.Success, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Agregado a tu calendario", fontSize = 14.sp, fontWeight = FontWeight.W600, color = AppColors.Success)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            } else if (state.isCalendarPending) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.PrimaryYellow.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                    shape = RoundedCornerShape(12.dp),
+                    color = AppColors.PrimaryYellow.copy(alpha = 0.08f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = AppColors.PrimaryYellow, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sincronización pendiente — se agregará cuando haya conexión", fontSize = 14.sp, fontWeight = FontWeight.W600, color = AppColors.PrimaryYellow)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+            // Sprint 3: Feature Calendar Sync — END BQ indicator
+
+            // Apply button / already applied
             if (state.hasApplied) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Success.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
@@ -171,47 +208,6 @@ fun OfferDetailScreen(
                     }
                 }
             } else {
-
-                // Sprint 3: Feature Calendar Sync — BQ indicator
-                // Answers BQ: "Which of the student's applied offers have been added to their calendar?"
-                // Shows green if already in calendar, yellow if pending sync, nothing if not yet applied
-                if (state.isAddedToCalendar) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Success.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
-                        shape = RoundedCornerShape(12.dp),
-                        color = AppColors.Success.copy(alpha = 0.08f)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = AppColors.Success, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Added to your calendar", fontSize = 14.sp, fontWeight = FontWeight.W600, color = AppColors.Success)
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                } else if (state.isCalendarPending) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.PrimaryYellow.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
-                        shape = RoundedCornerShape(12.dp),
-                        color = AppColors.PrimaryYellow.copy(alpha = 0.08f)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = AppColors.PrimaryYellow, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Calendar sync pending — will sync when online", fontSize = 14.sp, fontWeight = FontWeight.W600, color = AppColors.PrimaryYellow)
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                }
-                // Sprint 3: Feature Calendar Sync — END BQ indicator
-
                 Button(
                     onClick = { showApplyDialog = true },
                     modifier = Modifier.fillMaxWidth().height(58.dp),
@@ -232,7 +228,7 @@ fun OfferDetailScreen(
                     onDismiss = { showApplyDialog = false },
                     onSuccess = {
                         showApplyDialog = false
-                        onBack()
+                        // Sprint 3: Feature Calendar Sync — stay on screen to show calendar banner
                     }
                 )
             }
@@ -251,9 +247,7 @@ fun ApplyApplicationDialog(
     userName: String,
     userDepartment: String,
     detailViewModel: OfferDetailViewModel,
-    // Sprint 3: Feature Calendar Sync — context needed for calendar insert
     context: Context,
-    // Sprint 3: Feature Calendar Sync — END
     onDismiss: () -> Unit,
     onSuccess: () -> Unit
 ) {
@@ -266,6 +260,10 @@ fun ApplyApplicationDialog(
     var availability by remember { mutableStateOf("") }
     var motivationLetter by remember { mutableStateOf("") }
     var expandedAvailability by remember { mutableStateOf(false) }
+
+    // Sprint 3: Feature Calendar Sync — user choice to add to calendar
+    var addToCalendar by remember { mutableStateOf(true) }
+    // Sprint 3: Feature Calendar Sync — END
 
     var nameError by remember { mutableStateOf<String?>(null) }
     var semesterError by remember { mutableStateOf<String?>(null) }
@@ -418,6 +416,40 @@ fun ApplyApplicationDialog(
                         colors = OutlinedTextFieldDefaults.colors()
                     )
                 }
+
+                // Sprint 3: Feature Calendar Sync — calendar toggle
+                // User decides whether to add this offer to their device calendar
+                HorizontalDivider(color = AppColors.Border)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            tint = if (addToCalendar) AppColors.PrimaryYellow else AppColors.GreyText,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column {
+                            Text("Agregar al calendario", fontSize = 13.sp, fontWeight = FontWeight.W700)
+                            Text("Guarda la fecha de esta oferta", fontSize = 11.sp, color = AppColors.GreyText)
+                        }
+                    }
+                    Switch(
+                        checked = addToCalendar,
+                        onCheckedChange = { addToCalendar = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = AppColors.DarkText,
+                            checkedTrackColor = AppColors.PrimaryYellow
+                        )
+                    )
+                }
+                // Sprint 3: Feature Calendar Sync — END calendar toggle
             }
         },
         confirmButton = {
@@ -427,8 +459,7 @@ fun ApplyApplicationDialog(
                     else availabilityError = null
 
                     if (validateForm(nameError, semesterError, gpaError) && availabilityError == null) {
-                        // Sprint 3: Feature Calendar Sync — use applyAndSyncCalendar
-                        // Replaces applyWithDetails to add parallel calendar sync
+                        // Sprint 3: Feature Calendar Sync — pass addToCalendar choice
                         detailViewModel.applyAndSyncCalendar(
                             context = context,
                             offerId = offerId,
@@ -438,6 +469,7 @@ fun ApplyApplicationDialog(
                             gpa = gpa.toFloat(),
                             availability = availability,
                             motivationLetter = motivationLetter,
+                            addToCalendar = addToCalendar,
                             onSuccess = onSuccess
                         )
                         // Sprint 3: Feature Calendar Sync — END

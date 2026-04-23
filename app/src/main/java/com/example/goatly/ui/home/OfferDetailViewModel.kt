@@ -79,6 +79,11 @@ class OfferDetailViewModel(
                 false
             }
 
+            // Sprint 3: Feature Calendar Sync — load persisted calendar state
+            val isSynced = CalendarSyncManager.isOfferSynced(context, offer.id)
+            val isPending = CalendarSyncManager.isOfferPending(context, offer.id)
+            // Sprint 3: Feature Calendar Sync — END
+
             _state.value = OfferDetailUiState(
                 id = offer.id,
                 title = offer.title,
@@ -93,11 +98,11 @@ class OfferDetailViewModel(
                 longitude = offerLng,
                 isOnSite = offer.isOnSite,
                 distanceText = null,
-                // Sprint 3: Feature Calendar Sync — store raw values for calendar insert
                 offerDateMillis = offer.dateTime.time,
                 offerDurationHours = offer.durationHours,
-                offerLocationText = if (offer.isOnSite) "Presencial - Universidad de los Andes" else "Remoto"
-                // Sprint 3: Feature Calendar Sync — END
+                offerLocationText = if (offer.isOnSite) "Presencial - Universidad de los Andes" else "Remoto",
+                isAddedToCalendar = isSynced,
+                isCalendarPending = isPending
             )
 
             if (offer.isOnSite) {
@@ -143,63 +148,10 @@ class OfferDetailViewModel(
         }
     }
 
-    fun applyWithDetails(
-        offerId: String,
-        applicantName: String,
-        career: String,
-        semester: Int,
-        gpa: Float,
-        availability: String,
-        motivationLetter: String,
-        onSuccess: () -> Unit
-    ) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            try {
-                val offerIdInt = offerId.toIntOrNull() ?: run {
-                    _error.value = "ID de oferta inválido"
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                val token = TokenManager.getAccessToken() ?: run {
-                    _error.value = "Sesión expirada"
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                val request = ApplyRequest(
-                    offerId = offerIdInt,
-                    offerTitle = _state.value.title,
-                    applicantName = applicantName,
-                    career = career,
-                    semester = semester,
-                    gpa = gpa,
-                    availability = availability,
-                    motivationLetter = motivationLetter
-                )
-
-                RetrofitClient.api.applyToOffer("Bearer $token", request)
-                _state.value = _state.value.copy(hasApplied = true)
-                onSuccess()
-            } catch (e: HttpException) {
-                _error.value = when (e.code()) {
-                    409 -> "Ya has aplicado a esta oferta"
-                    else -> "Error al aplicar: ${e.message()}"
-                }
-            } catch (e: Exception) {
-                _error.value = "Error de conexión: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
     // Sprint 3: Feature Calendar Sync — applyAndSyncCalendar
     // Runs two parallel coroutines using async/await:
     // Coroutine 1: POST application to backend
-    // Coroutine 2: Insert event into device calendar
+    // Coroutine 2: Insert event into device calendar (only if addToCalendar = true)
     // This is the multi-threading strategy for Sprint 3.
     fun applyAndSyncCalendar(
         context: Context,
@@ -210,6 +162,7 @@ class OfferDetailViewModel(
         gpa: Float,
         availability: String,
         motivationLetter: String,
+        addToCalendar: Boolean,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
@@ -245,25 +198,26 @@ class OfferDetailViewModel(
                 }
 
                 val calendarJob = async(Dispatchers.IO) {
-                    CalendarSyncManager.addOfferToCalendar(
-                        context = context,
-                        offerId = offerId,
-                        title = _state.value.title,
-                        dateTimeMillis = _state.value.offerDateMillis,
-                        durationHours = _state.value.offerDurationHours,
-                        location = _state.value.offerLocationText
-                    )
+                    if (addToCalendar) {
+                        CalendarSyncManager.addOfferToCalendar(
+                            context = context,
+                            offerId = offerId,
+                            title = _state.value.title,
+                            dateTimeMillis = _state.value.offerDateMillis,
+                            durationHours = _state.value.offerDurationHours,
+                            location = _state.value.offerLocationText
+                        )
+                    } else false
                 }
 
-                // Await both — backend must succeed for apply to count
                 backendJob.await()
                 val calendarSuccess = calendarJob.await()
                 // Sprint 3: Multi-threading — END
 
                 _state.value = _state.value.copy(
                     hasApplied = true,
-                    isAddedToCalendar = calendarSuccess,
-                    isCalendarPending = !calendarSuccess
+                    isAddedToCalendar = addToCalendar && calendarSuccess,
+                    isCalendarPending = addToCalendar && !calendarSuccess
                 )
                 onSuccess()
 
@@ -280,16 +234,4 @@ class OfferDetailViewModel(
         }
     }
     // Sprint 3: Feature Calendar Sync — END applyAndSyncCalendar
-
-    // Sprint 3: Feature Calendar Sync — BQ helper
-    // Loads calendar state from SharedPreferences to show indicator in OfferDetailScreen
-    fun loadCalendarState(context: Context, offerId: String) {
-        val synced = CalendarSyncManager.isOfferSynced(context, offerId)
-        val pending = CalendarSyncManager.isOfferPending(context, offerId)
-        _state.value = _state.value.copy(
-            isAddedToCalendar = synced,
-            isCalendarPending = pending
-        )
-    }
-    // Sprint 3: Feature Calendar Sync — END BQ helper
 }

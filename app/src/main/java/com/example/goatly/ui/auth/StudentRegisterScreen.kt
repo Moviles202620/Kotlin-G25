@@ -61,15 +61,15 @@ fun StudentRegisterScreen(
     // Real-time password rules checklist. Each rule is a label + a lambda that checks the password.
     // Displayed as a green/red checklist below the password field.
     val passwordRules = listOf(
-        "At least 8 characters"             to { p: String -> p.length >= 8 },
-        "One uppercase letter"              to { p: String -> p.any { it.isUpperCase() } },
-        "One lowercase letter"              to { p: String -> p.any { it.isLowerCase() } },
-        "One number"                        to { p: String -> p.any { it.isDigit() } },
-        "One special character (!@#\$%^&*)" to { p: String ->
+        "Al menos 8 caracteres"                    to { p: String -> p.length >= 8 },
+        "Una letra mayúscula"                      to { p: String -> p.any { it.isUpperCase() } },
+        "Una letra minúscula"                      to { p: String -> p.any { it.isLowerCase() } },
+        "Un número"                                to { p: String -> p.any { it.isDigit() } },
+        "Un carácter especial (!@#\$%^&*)"         to { p: String ->
             p.any { "!@#\$%^&*()-_=+[]{}|;:',.<>?/`~".contains(it) }
         },
-        "No spaces"                         to { p: String -> !p.contains(' ') },
-        "No emojis"                         to { p: String -> !emojiRegex.containsMatchIn(p) }
+        "Sin espacios"                             to { p: String -> !p.contains(' ') },
+        "Sin emojis"                               to { p: String -> !emojiRegex.containsMatchIn(p) }
     )
     // passwordStrong is true only when ALL rules pass — used to enable the register button
     val passwordStrong = passwordRules.all { (_, check) -> check(password) }
@@ -311,7 +311,7 @@ fun StudentRegisterScreen(
                                 verticalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Text(
-                                    "Your password must have:",
+                                    "Tu contraseña debe tener:",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.W600,
                                     color = AppColors.GreyText

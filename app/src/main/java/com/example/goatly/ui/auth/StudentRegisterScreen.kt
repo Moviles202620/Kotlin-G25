@@ -39,13 +39,11 @@ fun StudentRegisterScreen(
     var nameError by remember { mutableStateOf<String?>(null) }
     var emailError by remember { mutableStateOf<String?>(null) }
     var majorError by remember { mutableStateOf<String?>(null) }
-    var passwordError by remember { mutableStateOf<String?>(null) }
 
     val isLoading by viewModel.isLoading.collectAsState()
 
     val emojiRegex = Regex("[\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u27BF]")
     val nameRegex = Regex("^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+$")
-    val passwordRegex = Regex("^\\S+$")
 
     fun validateEmail(value: String): String? {
         val e = value.trim().lowercase()
@@ -58,6 +56,24 @@ fun StudentRegisterScreen(
             else -> null
         }
     }
+
+    // Sprint 3: Feature Password Strength Indicator — START
+    // Real-time password rules checklist. Each rule is a label + a lambda that checks the password.
+    // Displayed as a green/red checklist below the password field.
+    val passwordRules = listOf(
+        "At least 8 characters"             to { p: String -> p.length >= 8 },
+        "One uppercase letter"              to { p: String -> p.any { it.isUpperCase() } },
+        "One lowercase letter"              to { p: String -> p.any { it.isLowerCase() } },
+        "One number"                        to { p: String -> p.any { it.isDigit() } },
+        "One special character (!@#\$%^&*)" to { p: String ->
+            p.any { "!@#\$%^&*()-_=+[]{}|;:',.<>?/`~".contains(it) }
+        },
+        "No spaces"                         to { p: String -> !p.contains(' ') },
+        "No emojis"                         to { p: String -> !emojiRegex.containsMatchIn(p) }
+    )
+    // passwordStrong is true only when ALL rules pass — used to enable the register button
+    val passwordStrong = passwordRules.all { (_, check) -> check(password) }
+    // Sprint 3: Feature Password Strength Indicator — END
 
     val careers = listOf(
         "No Aplica",
@@ -271,27 +287,64 @@ fun StudentRegisterScreen(
                     Spacer(Modifier.height(16.dp))
 
                     // ── Contraseña ──────────────────────────────────────────
+                    // Sprint 3: Feature Password Strength Indicator — UI
                     Text("Contraseña", fontSize = 16.sp, fontWeight = FontWeight.W700)
                     Spacer(Modifier.height(10.dp))
                     GoatlyTextField(
                         value = password,
-                        onValueChange = {
-                            password = it
-                            passwordError = when {
-                                it.isBlank() -> null
-                                emojiRegex.containsMatchIn(it) -> "La contraseña no puede contener emojis"
-                                !passwordRegex.matches(it) -> "La contraseña no puede contener espacios"
-                                it.length < 6 -> "Mínimo 6 caracteres"
-                                else -> null
-                            }
-                        },
-                        placeholder = "Mínimo 6 caracteres",
+                        onValueChange = { password = it },
+                        placeholder = "Crea una contraseña segura",
                         isPassword = true
                     )
-                    passwordError?.let { Text(it, color = Color.Red, fontSize = 12.sp) }
+
+                    // Sprint 3: Feature Password Strength Indicator — Checklist
+                    // Shows only when the user starts typing. Each rule turns green when met.
+                    if (password.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = AppColors.Background
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Text(
+                                    "Your password must have:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.W600,
+                                    color = AppColors.GreyText
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                passwordRules.forEach { (label, check) ->
+                                    val passed = check(password)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (passed) "✓" else "✗",
+                                            color = if (passed) AppColors.Success else AppColors.Danger,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.W700
+                                        )
+                                        Text(
+                                            text = label,
+                                            color = if (passed) AppColors.Success else AppColors.Danger,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Sprint 3: Feature Password Strength Indicator — END UI
 
                     Spacer(Modifier.height(22.dp))
 
+                    // Sprint 3: Feature Password Strength Indicator — Button validation
+                    // Register button only fires when ALL password rules pass (passwordStrong = true)
                     Button(
                         onClick = {
                             nameError = when {
@@ -302,14 +355,8 @@ fun StudentRegisterScreen(
                             }
                             emailError = if (email.isBlank()) "Campo requerido" else validateEmail(email)
                             majorError = if (major.isBlank()) "Selecciona una carrera" else null
-                            passwordError = when {
-                                password.isBlank() -> "Campo requerido"
-                                emojiRegex.containsMatchIn(password) -> "La contraseña no puede contener emojis"
-                                !passwordRegex.matches(password) -> "La contraseña no puede contener espacios"
-                                password.length < 6 -> "Mínimo 6 caracteres"
-                                else -> null
-                            }
-                            if (nameError == null && emailError == null && majorError == null && passwordError == null) {
+
+                            if (nameError == null && emailError == null && majorError == null && passwordStrong) {
                                 viewModel.register(name, email, password, major, selectedRole, onRegisterSuccess)
                             }
                         },
@@ -327,6 +374,7 @@ fun StudentRegisterScreen(
                             Text("Crear cuenta", fontSize = 20.sp, fontWeight = FontWeight.W800)
                         }
                     }
+                    // Sprint 3: Feature Password Strength Indicator — END Button validation
                 }
             }
 

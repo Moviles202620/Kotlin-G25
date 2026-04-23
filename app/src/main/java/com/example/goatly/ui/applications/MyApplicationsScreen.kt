@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,13 +38,15 @@ fun MyApplicationsScreen(
 ) {
     val uiState by appsViewModel.uiState.collectAsState()
     val activeFilter by appsViewModel.activeFilter.collectAsState()
+    val isOffline by appsViewModel.isOffline.collectAsState()
+    val searchQuery by appsViewModel.searchQuery.collectAsState()
+    val filteredApplications by appsViewModel.filteredApplications.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val topOffers by appsViewModel.topOffers.collectAsState()
 
-    // Carga inicial al entrar a la pantalla
+    // Carga inicial — load() ya incluye top offers en paralelo
     LaunchedEffect(Unit) {
         appsViewModel.load()
-        appsViewModel.loadTopOffers()
     }
 
     // One-time navigation event for 401
@@ -75,48 +79,67 @@ fun MyApplicationsScreen(
                 }
             }
 
-            is ApplicationsViewModel.UiState.Success -> {
-                val response = state.response
+            is ApplicationsViewModel.UiState.Success,
+            is ApplicationsViewModel.UiState.SuccessOffline -> {
+                val apps = if (searchQuery.isEmpty()) {
+                    when (val s = uiState) {
+                        is ApplicationsViewModel.UiState.Success -> s.response.applications
+                        is ApplicationsViewModel.UiState.SuccessOffline -> s.applications
+                        else -> emptyList()
+                    }
+                } else filteredApplications
+
+                val stats = when (val s = uiState) {
+                    is ApplicationsViewModel.UiState.Success -> s.response.stats
+                    is ApplicationsViewModel.UiState.SuccessOffline -> s.stats
+                    else -> null
+                }
+
                 LazyColumn(
                     modifier = Modifier.padding(padding),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    // Banner offline
+                    if (isOffline) {
+                        item { OfflineBanner() }
+                    }
+
                     // Stats banner
-                    item {
-                        StatsCard(stats = response.stats)
+                    if (stats != null) {
+                        item { StatsCard(stats = stats) }
                     }
 
-                    // BQ 2 top offers Section - Moved to top for visibility
+                    // BQ top offers
                     if (topOffers.isNotEmpty()) {
-                        item {
-                            TopOffersCard(topOffers = topOffers)
-                        }
+                        item { TopOffersCard(topOffers = topOffers) }
                     }
 
-                    // Filter row
+                    // Search field + filter row
+                    item {
+                        SearchField(
+                            query = searchQuery,
+                            onQueryChange = { appsViewModel.onSearchQueryChanged(it) }
+                        )
+                    }
                     item {
                         FilterRow(activeFilter = activeFilter, onFilter = { appsViewModel.load(it) })
                     }
 
-                    if (response.applications.isEmpty()) {
+                    if (apps.isEmpty()) {
                         item { EmptyApplications() }
                     } else {
                         item {
                             Text("Historial", fontSize = 22.sp, fontWeight = FontWeight.W800)
                         }
-                        items(response.applications) { app ->
-                            ApplicationCard(
-                                app = app,
-                                onClick = { onNavigateToDetail(app) }
-                            )
+                        items(apps) { app ->
+                            ApplicationCard(app = app, onClick = { onNavigateToDetail(app) })
                         }
                     }
                 }
             }
 
             is ApplicationsViewModel.UiState.Error -> {
-                // Error is shown via snackbar; show empty list so layout is stable
                 Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                     EmptyApplications()
                 }
@@ -332,6 +355,48 @@ private fun EmptyApplications(modifier: Modifier = Modifier) {
             fontSize = 18.sp, color = AppColors.GreyText, lineHeight = 24.sp
         )
     }
+}
+
+@Composable
+private fun OfflineBanner() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFFF5F0E8)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(Icons.Default.WifiOff, contentDescription = null, tint = Color(0xFF9A7B3A), modifier = Modifier.size(18.dp))
+            Text(
+                "Sin conexión — mostrando datos guardados",
+                fontSize = 13.sp,
+                color = Color(0xFF9A7B3A),
+                fontWeight = FontWeight.W600
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text("Buscar por oferta o carrera…", color = AppColors.GreyText) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = AppColors.GreyText) },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = AppColors.PrimaryYellow,
+            unfocusedBorderColor = AppColors.Border,
+            focusedContainerColor = AppColors.Surface,
+            unfocusedContainerColor = AppColors.Surface
+        )
+    )
 }
 
 @Composable

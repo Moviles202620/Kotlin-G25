@@ -105,14 +105,12 @@ data class MyApplicationItemDto(
     val status: String,
     @field:Json(name = "created_at") val createdAt: String,
     val offer: OfferSummaryDto,
-    // Student profile fields
     @field:Json(name = "applicant_name") val applicantName: String? = null,
     val career: String? = null,
     val semester: Int? = null,
     val gpa: Float? = null,
     val availability: String? = null,
     @field:Json(name = "motivation_letter") val motivationLetter: String? = null,
-    // Completion & rating fields
     @field:Json(name = "is_completed") val isCompleted: Boolean = false,
     @field:Json(name = "completed_at") val completedAt: String? = null,
     val rating: Float? = null,
@@ -161,6 +159,19 @@ data class ApplicationResponse(
 @JsonClass(generateAdapter = true)
 data class TopOfferDto(val title: String, val total: Int)
 
+// Sprint 3: BQ — DTO for average GPA per offer
+@JsonClass(generateAdapter = true)
+data class GpaByOfferDto(
+    @field:Json(name = "offer_id") val offerId: Int,
+    @field:Json(name = "offer_title") val offerTitle: String,
+    val category: String? = null,
+    @field:Json(name = "total_applicants") val totalApplicants: Int,
+    @field:Json(name = "average_gpa") val averageGpa: Float,
+    @field:Json(name = "min_gpa") val minGpa: Float,
+    @field:Json(name = "max_gpa") val maxGpa: Float
+)
+// Sprint 3: BQ — END
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 interface ApiService {
@@ -207,4 +218,9 @@ interface ApiService {
 
     @GET("applications/bq/top-offers")
     suspend fun getTopOffers(): List<TopOfferDto>
+
+    // Sprint 3: BQ — Average GPA of applicants per offer
+    @GET("analytics/gpa-by-offer")
+    suspend fun getGpaByOffer(): List<GpaByOfferDto>
+    // Sprint 3: BQ — END
 }

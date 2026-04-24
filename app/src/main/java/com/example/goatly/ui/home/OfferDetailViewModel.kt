@@ -49,8 +49,12 @@ class OfferDetailViewModel(
         val isCalendarPending: Boolean = false,
         val offerDateMillis: Long = 0L,
         val offerDurationHours: Int = 0,
-        val offerLocationText: String = ""
+        val offerLocationText: String = "",
         // Sprint 3: Feature Calendar Sync — END state fields
+        // Sprint 3: BQ — Average GPA of applicants to this offer
+        val avgGpa: Float? = null,
+        val totalApplicants: Int = 0
+        // Sprint 3: BQ — END
     )
 
     private val _state = MutableStateFlow(OfferDetailUiState())
@@ -109,6 +113,10 @@ class OfferDetailViewModel(
             if (offer.isOnSite) {
                 startTrackingLocation(context)
             }
+
+            // Sprint 3: BQ — load GPA data for this offer
+            loadGpaForOffer(offerId)
+            // Sprint 3: BQ — END
         }
     }
 
@@ -247,7 +255,6 @@ class OfferDetailViewModel(
             )
 
             // Sprint 3: Multi-threading — Coroutine 1 on Dispatchers.IO (network)
-            // Each async has its own try/catch to avoid cancelling sibling coroutines
             val backendJob = async(Dispatchers.IO) {
                 try {
                     RetrofitClient.api.applyToOffer("Bearer $token", request)
@@ -290,8 +297,8 @@ class OfferDetailViewModel(
                     )
                     onSuccess()
                 } else {
-                    // Sprint 3: Eventual Connectivity — close dialog first, then show error
-                    onSuccess() // cierra el dialog
+                    // Sprint 3: Eventual Connectivity — close dialog then show error
+                    onSuccess()
                     _error.value = "No hay conexión a internet. Intenta de nuevo cuando tengas red."
                 }
             }
@@ -301,4 +308,25 @@ class OfferDetailViewModel(
         }
     }
     // Sprint 3: Feature Calendar Sync — END applyAndSyncCalendar
+
+    // Sprint 3: BQ — "What is the average GPA of students who applied to this offer?"
+    // Fetches analytics data from GET /analytics/gpa-by-offer and filters by offerId
+    private fun loadGpaForOffer(offerId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val offerIdInt = offerId.toIntOrNull() ?: return@launch
+                val gpaData = RetrofitClient.api.getGpaByOffer()
+                val offerGpa = gpaData.find { it.offerId == offerIdInt }
+                withContext(Dispatchers.Main) {
+                    _state.value = _state.value.copy(
+                        avgGpa = offerGpa?.averageGpa,
+                        totalApplicants = offerGpa?.totalApplicants ?: 0
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("GOATLY_BQ", "GPA load failed: ${e.message}")
+            }
+        }
+    }
+    // Sprint 3: BQ — END
 }

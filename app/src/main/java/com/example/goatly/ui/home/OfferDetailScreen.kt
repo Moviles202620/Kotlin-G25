@@ -134,6 +134,51 @@ fun OfferDetailScreen(
                 }
             }
 
+            // Sprint 3: BQ — Average GPA card
+            // "What is the average GPA of students who applied to this offer?"
+            if (state.avgGpa != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+                    shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Text(
+                            "COMPETENCIA",
+                            fontSize = 12.sp,
+                            letterSpacing = 1.4.sp,
+                            color = Color(0xFF9AA4B2),
+                            fontWeight = FontWeight.W800
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("GPA promedio de aplicantes", fontSize = 13.sp, color = AppColors.GreyText)
+                                Text(
+                                    "%.2f / 5.0".format(state.avgGpa),
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.W900,
+                                    color = AppColors.DarkText
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Aplicantes", fontSize = 13.sp, color = AppColors.GreyText)
+                                Text(
+                                    "${state.totalApplicants}",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.W900,
+                                    color = AppColors.PrimaryYellow
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            // Sprint 3: BQ — END
+
             // Mapa card
             if (state.isOnSite) {
                 Surface(
@@ -496,7 +541,6 @@ fun ApplyApplicationDialog(
                     else availabilityError = null
 
                     if (validateForm(nameError, semesterError, gpaError) && availabilityError == null) {
-                        // Sprint 3: Feature Calendar Sync — pass addToCalendar choice
                         detailViewModel.applyAndSyncCalendar(
                             context = context,
                             offerId = offerId,
@@ -509,7 +553,6 @@ fun ApplyApplicationDialog(
                             addToCalendar = addToCalendar,
                             onSuccess = onSuccess
                         )
-                        // Sprint 3: Feature Calendar Sync — END
                     }
                 },
                 enabled = !isLoading && nameError == null && semesterError == null && gpaError == null && availability.isNotBlank(),

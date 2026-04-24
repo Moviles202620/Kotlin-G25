@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,11 +41,6 @@ fun StudentHomeScreen(
     val categories by homeViewModel.categories.collectAsState()
     val distanceFilter by homeViewModel.distanceFilter.collectAsState()
     val context = LocalContext.current
-
-    // Sprint 3: BQ12 — collect average GPA state
-    val avgGpaNearby by homeViewModel.avgGpaNearby.collectAsState()
-    val bqLoading by homeViewModel.bqLoading.collectAsState()
-    // Sprint 3: BQ12 — END
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var tempShowRemote by remember { mutableStateOf(true) }
@@ -95,7 +89,7 @@ fun StudentHomeScreen(
             modifier = Modifier.padding(padding).fillMaxSize(),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // Fila 1 — Filtros de categoría
+            // Filtros de categoría
             item {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
@@ -126,7 +120,7 @@ fun StudentHomeScreen(
                 }
             }
 
-            // Fila 2 — Filtro por distancia
+            // Filtro por distancia
             item {
                 Row(
                     modifier = Modifier
@@ -166,20 +160,6 @@ fun StudentHomeScreen(
                     )
                 }
             }
-
-            // Sprint 3: BQ12 — Average GPA card
-            // "What is the average GPA of students who have applied to offers near the student's current location?"
-            // Visible only when GPS is available and there is data from the backend
-            item {
-                BQ12GpaCard(
-                    avgGpa = avgGpaNearby,
-                    isLoading = bqLoading,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 14.dp)
-                )
-            }
-            // Sprint 3: BQ12 — END
 
             // Header
             item {
@@ -319,75 +299,6 @@ fun StudentHomeScreen(
         }
     }
 }
-
-// Sprint 3: BQ12 — Card component
-// Displays the average GPA of applicants to offers within 2km of the student's location
-// Answers: "What is the average GPA of students who have applied to offers near the student's current location?"
-@Composable
-fun BQ12GpaCard(
-    avgGpa: Float?,
-    isLoading: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
-        shape = RoundedCornerShape(14.dp),
-        color = AppColors.Surface
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(AppColors.PrimaryYellow.copy(alpha = 0.15f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.School,
-                    contentDescription = null,
-                    tint = AppColors.PrimaryYellow,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Column {
-                Text(
-                    "GPA promedio cerca de ti",
-                    fontSize = 12.sp,
-                    color = AppColors.GreyText,
-                    fontWeight = FontWeight.W600
-                )
-                Spacer(Modifier.height(2.dp))
-                when {
-                    isLoading -> CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = AppColors.PrimaryYellow
-                    )
-                    avgGpa != null -> Text(
-                        "%.2f / 5.0".format(avgGpa),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.W900,
-                        color = AppColors.DarkText
-                    )
-                    else -> Text(
-                        "Sin datos cercanos aún",
-                        fontSize = 14.sp,
-                        color = AppColors.GreyText
-                    )
-                }
-                Text(
-                    "De aplicantes a ofertas en un radio de 2 km",
-                    fontSize = 11.sp,
-                    color = AppColors.GreyText
-                )
-            }
-        }
-    }
-}
-// Sprint 3: BQ12 — END
 
 @Composable
 fun OfferCard(offer: HomeViewModel.OfferUiItem, onClick: () -> Unit, modifier: Modifier = Modifier) {

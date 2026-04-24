@@ -53,8 +53,18 @@ fun OfferDetailScreen(
     onBack: () -> Unit
 ) {
     val state by detailViewModel.state.collectAsState()
+    val error by detailViewModel.error.collectAsState()
     var showApplyDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Sprint 3: Eventual Connectivity — show error as snackbar
+    LaunchedEffect(error) {
+        error?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
+    // Sprint 3: Eventual Connectivity — END
 
     val locationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -76,6 +86,7 @@ fun OfferDetailScreen(
     val lng = state.longitude ?: -74.0657
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Detalle de oferta", fontWeight = FontWeight.W800) },
@@ -123,6 +134,51 @@ fun OfferDetailScreen(
                 }
             }
 
+            // Sprint 3: BQ — Average GPA card
+            // "What is the average GPA of students who applied to this offer?"
+            if (state.avgGpa != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+                    shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Text(
+                            "COMPETENCIA",
+                            fontSize = 12.sp,
+                            letterSpacing = 1.4.sp,
+                            color = Color(0xFF9AA4B2),
+                            fontWeight = FontWeight.W800
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("GPA promedio de aplicantes", fontSize = 13.sp, color = AppColors.GreyText)
+                                Text(
+                                    "%.2f / 5.0".format(state.avgGpa),
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.W900,
+                                    color = AppColors.DarkText
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Aplicantes", fontSize = 13.sp, color = AppColors.GreyText)
+                                Text(
+                                    "${state.totalApplicants}",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.W900,
+                                    color = AppColors.PrimaryYellow
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            // Sprint 3: BQ — END
+
             // Mapa card
             if (state.isOnSite) {
                 Surface(
@@ -156,8 +212,6 @@ fun OfferDetailScreen(
             Spacer(Modifier.weight(1f))
 
             // Sprint 3: Feature Calendar Sync — BQ indicator
-            // Visible independently of apply status
-            // Answers BQ: "Which of the student's applied offers have been added to their calendar?"
             if (state.isAddedToCalendar) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Success.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
@@ -264,6 +318,25 @@ fun ApplyApplicationDialog(
     // Sprint 3: Feature Calendar Sync — user choice to add to calendar
     var addToCalendar by remember { mutableStateOf(true) }
     // Sprint 3: Feature Calendar Sync — END
+
+    // Sprint 3: Feature Calendar Sync — runtime permission request
+    val calendarPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[android.Manifest.permission.READ_CALENDAR] == true &&
+                permissions[android.Manifest.permission.WRITE_CALENDAR] == true
+        android.util.Log.d("CalendarSync", "Calendar permissions granted: $granted")
+    }
+
+    LaunchedEffect(Unit) {
+        calendarPermissionLauncher.launch(
+            arrayOf(
+                android.Manifest.permission.READ_CALENDAR,
+                android.Manifest.permission.WRITE_CALENDAR
+            )
+        )
+    }
+    // Sprint 3: Feature Calendar Sync — END runtime permission
 
     var nameError by remember { mutableStateOf<String?>(null) }
     var semesterError by remember { mutableStateOf<String?>(null) }
@@ -418,7 +491,6 @@ fun ApplyApplicationDialog(
                 }
 
                 // Sprint 3: Feature Calendar Sync — calendar toggle
-                // User decides whether to add this offer to their device calendar
                 HorizontalDivider(color = AppColors.Border)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -442,7 +514,17 @@ fun ApplyApplicationDialog(
                     }
                     Switch(
                         checked = addToCalendar,
-                        onCheckedChange = { addToCalendar = it },
+                        onCheckedChange = { checked ->
+                            addToCalendar = checked
+                            if (checked) {
+                                calendarPermissionLauncher.launch(
+                                    arrayOf(
+                                        android.Manifest.permission.READ_CALENDAR,
+                                        android.Manifest.permission.WRITE_CALENDAR
+                                    )
+                                )
+                            }
+                        },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = AppColors.DarkText,
                             checkedTrackColor = AppColors.PrimaryYellow
@@ -459,7 +541,6 @@ fun ApplyApplicationDialog(
                     else availabilityError = null
 
                     if (validateForm(nameError, semesterError, gpaError) && availabilityError == null) {
-                        // Sprint 3: Feature Calendar Sync — pass addToCalendar choice
                         detailViewModel.applyAndSyncCalendar(
                             context = context,
                             offerId = offerId,
@@ -472,7 +553,6 @@ fun ApplyApplicationDialog(
                             addToCalendar = addToCalendar,
                             onSuccess = onSuccess
                         )
-                        // Sprint 3: Feature Calendar Sync — END
                     }
                 },
                 enabled = !isLoading && nameError == null && semesterError == null && gpaError == null && availability.isNotBlank(),

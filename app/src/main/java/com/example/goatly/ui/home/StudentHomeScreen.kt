@@ -89,7 +89,7 @@ fun StudentHomeScreen(
             modifier = Modifier.padding(padding).fillMaxSize(),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // Fila 1 — Filtros de categoría
+            // Filtros de categoría
             item {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
@@ -120,7 +120,7 @@ fun StudentHomeScreen(
                 }
             }
 
-            // Fila 2 — Filtro por distancia
+            // Filtro por distancia
             item {
                 Row(
                     modifier = Modifier
@@ -201,7 +201,6 @@ fun StudentHomeScreen(
             ) {
                 Text("Filtro por distancia", fontSize = 20.sp, fontWeight = FontWeight.W800)
 
-                // Toggle remotas
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -220,7 +219,6 @@ fun StudentHomeScreen(
 
                 HorizontalDivider(color = AppColors.Border)
 
-                // Distancia máxima
                 Text("Distancia máxima", fontSize = 16.sp, fontWeight = FontWeight.W700)
                 val distOptions = listOf(
                     null to "Sin límite",
@@ -246,7 +244,6 @@ fun StudentHomeScreen(
 
                 HorizontalDivider(color = AppColors.Border)
 
-                // Ordenar
                 Text("Ordenar por distancia", fontSize = 16.sp, fontWeight = FontWeight.W700)
                 listOf(
                     HomeViewModel.SortOrder.CLOSEST_FIRST to "Más cercano primero",
@@ -266,7 +263,6 @@ fun StudentHomeScreen(
                     }
                 }
 
-                // Botones
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(
                         onClick = {

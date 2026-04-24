@@ -24,7 +24,7 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
             response.applications.map { item ->
                 ApplicationModel(
                     id = item.id.toString(),
-                    applicantName = "",
+                    applicantName = item.applicantName ?: "",
                     applicantInitials = "",
                     offerId = item.offerId.toString(),
                     offerTitle = item.offer.title,
@@ -33,7 +33,10 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
                         "accepted" -> ApplicationStatus.ACCEPTED
                         "rejected" -> ApplicationStatus.REJECTED
                         else -> ApplicationStatus.PENDING
-                    }
+                    },
+                    // Sprint 3: BQ12 — map GPA from backend response
+                    gpa = item.gpa
+                    // Sprint 3: BQ12 — END
                 )
             }
         } catch (_: Exception) {

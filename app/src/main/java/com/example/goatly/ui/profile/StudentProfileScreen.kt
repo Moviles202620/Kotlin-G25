@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ fun StudentProfileScreen(
     }
     val appsUiState by appsViewModel.uiState.collectAsState()
     val user by profileViewModel.user.collectAsState()
+    val isOffline by profileViewModel.isOffline.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val error by profileViewModel.error.collectAsState()
 
@@ -50,7 +52,11 @@ fun StudentProfileScreen(
     val userMajor = user?.department?.takeIf { it.isNotBlank() }
     val userLanguage = user?.language
     val initials = userName?.split(" ")?.take(2)?.joinToString("") { it.first().uppercase() } ?: "EU"
-    val stats = (appsUiState as? UiState.Success)?.response?.stats
+    val stats = when (val s = appsUiState) {
+        is UiState.Success -> s.response.stats
+        is UiState.SuccessOffline -> s.stats
+        else -> null
+    }
     val accepted = stats?.accepted ?: 0
     val pending = stats?.pending ?: 0
     val total = stats?.total ?: 0
@@ -60,6 +66,21 @@ fun StudentProfileScreen(
         containerColor = AppColors.Surface
     ) { padding ->
         LazyColumn(modifier = Modifier.padding(padding), contentPadding = PaddingValues(bottom = 24.dp)) {
+            if (isOffline) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF5F0E8))
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.WifiOff, contentDescription = null, tint = Color(0xFF9A7B3A), modifier = Modifier.size(16.dp))
+                        Text("Sin conexión — datos guardados", fontSize = 13.sp, color = Color(0xFF9A7B3A), fontWeight = FontWeight.W600)
+                    }
+                }
+            }
             item { Spacer(Modifier.height(18.dp)) }
 
             // Avatar

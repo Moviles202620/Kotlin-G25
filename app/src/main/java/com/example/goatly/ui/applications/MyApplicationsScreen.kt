@@ -44,6 +44,7 @@ fun MyApplicationsScreen(
     val filteredApplications by appsViewModel.filteredApplications.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val topOffers by appsViewModel.topOffers.collectAsState()
+    val avgPerSemester by appsViewModel.avgPerSemester.collectAsState()
 
     // Carga inicial — load() ya incluye top offers en paralelo
     LaunchedEffect(Unit) {
@@ -114,6 +115,11 @@ fun MyApplicationsScreen(
                     // BQ top offers
                     if (topOffers.isNotEmpty()) {
                         item { TopOffersCard(topOffers = topOffers) }
+                    }
+
+                    // BQ Sprint 3
+                    if (avgPerSemester.isNotEmpty()) {
+                        item { AvgPerSemesterCard(avgPerSemester) }
                     }
 
                     // BQ3: rating breakdown (solo si hay aplicaciones completadas)
@@ -515,5 +521,79 @@ private fun RatingDimension(label: String, value: Float, modifier: Modifier = Mo
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+private fun AvgPerSemesterCard(items: List<ApplicationsViewModel.AvgPerSemesterItem>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                "APLICACIONES POR SEMESTRE",
+                fontSize = 12.sp,
+                letterSpacing = 1.4.sp,
+                color = Color(0xFF9AA4B2),
+                fontWeight = FontWeight.W800
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Promedio de aplicaciones por semestre académico",
+                fontSize = 12.sp,
+                color = AppColors.GreyText
+            )
+            Spacer(Modifier.height(14.dp))
+            items.forEach { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(AppColors.PrimaryYellow.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "${item.semester}°",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.W900,
+                            color = Color(0xFF9A5B00)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Semestre ${item.semester}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.W700
+                        )
+                        Text(
+                            "${item.totalStudents} estudiante${if (item.totalStudents != 1) "s" else ""}",
+                            fontSize = 12.sp,
+                            color = AppColors.GreyText
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            String.format("%.1f", item.avgApplications),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.W900,
+                            color = AppColors.PrimaryYellow
+                        )
+                        Text(
+                            "apps/est.",
+                            fontSize = 11.sp,
+                            color = AppColors.GreyText
+                        )
+                    }
+                }
+                if (item != items.last()) {
+                    Divider(color = AppColors.Border, thickness = 0.5.dp)
+                }
+            }
+        }
     }
 }

@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -72,7 +71,7 @@ class ApplicationsViewModel : ViewModel() {
     private val _applyResult = MutableSharedFlow<Result<Unit>>(extraBufferCapacity = 1)
     val applyResult: SharedFlow<Result<Unit>> = _applyResult.asSharedFlow()
 
-    // BQ: Top Offers
+    // BQ Sprint 2: Top Offers
     data class TopOfferItem(val title: String, val total: Int)
 
     private val _topOffers = MutableStateFlow<List<TopOfferItem>>(emptyList())
@@ -90,6 +89,17 @@ class ApplicationsViewModel : ViewModel() {
     private val _ratingStats = MutableStateFlow<RatingStats?>(null)
     val ratingStats: StateFlow<RatingStats?> = _ratingStats.asStateFlow()
 
+    // BQ Sprint 3: Avg applications per semester
+    data class AvgPerSemesterItem(
+        val semester: Int,
+        val avgApplications: Float,
+        val totalStudents: Int,
+        val totalApplications: Int
+    )
+
+    private val _avgPerSemester = MutableStateFlow<List<AvgPerSemesterItem>>(emptyList())
+    val avgPerSemester: StateFlow<List<AvgPerSemesterItem>> = _avgPerSemester.asStateFlow()
+
     init {
         // Literal 4: Flow + debounce para búsqueda reactiva
         viewModelScope.launch {
@@ -106,7 +116,7 @@ class ApplicationsViewModel : ViewModel() {
                         if (query.isEmpty()) apps
                         else apps.filter { app ->
                             app.offer.title.contains(query, ignoreCase = true) ||
-                            app.career?.contains(query, ignoreCase = true) == true
+                                    app.career?.contains(query, ignoreCase = true) == true
                         }
                     }
                 }
@@ -136,8 +146,8 @@ class ApplicationsViewModel : ViewModel() {
                 return@launch
             }
             try {
-                // Literal 4: async/await paralelo — apps y top offers en simultáneo
-                val (response, topOffersList) = coroutineScope {
+                // Literal 4: async/await paralelo — apps, top offers y BQ Sprint 3 en simultáneo
+                val (response, topOffersList, avgSemesterList) = coroutineScope {
                     val appsDeferred = async(Dispatchers.IO) {
                         android.util.Log.d("GOATLY_ASYNC", "apps START: ${System.currentTimeMillis()}")
                         retryWithBackoff {
@@ -153,7 +163,12 @@ class ApplicationsViewModel : ViewModel() {
                         RetrofitClient.api.getTopOffers()
                             .also { android.util.Log.d("GOATLY_ASYNC", "topOffers END: ${System.currentTimeMillis()}") }
                     }
-                    Pair(appsDeferred.await(), topOffersDeferred.await())
+                    val avgSemesterDeferred = async(Dispatchers.IO) {
+                        android.util.Log.d("GOATLY_ASYNC", "avgSemester START: ${System.currentTimeMillis()}")
+                        RetrofitClient.api.getAvgApplicationsPerSemester()
+                            .also { android.util.Log.d("GOATLY_ASYNC", "avgSemester END: ${System.currentTimeMillis()}") }
+                    }
+                    Triple(appsDeferred.await(), topOffersDeferred.await(), avgSemesterDeferred.await())
                 }
 
                 // Literal 5+7: guardar en Room y LRU cache
@@ -165,6 +180,14 @@ class ApplicationsViewModel : ViewModel() {
                 _isOffline.value = false
                 _uiState.value = UiState.Success(response)
                 _topOffers.value = topOffersList.map { TopOfferItem(it.title, it.total) }
+                _avgPerSemester.value = avgSemesterList.map {
+                    AvgPerSemesterItem(
+                        semester = it.semester,
+                        avgApplications = it.avgApplications,
+                        totalStudents = it.totalStudents,
+                        totalApplications = it.totalApplications
+                    )
+                }
 
                 // BQ3: calcular breakdown de ratings desde Room
                 loadRatingStats()

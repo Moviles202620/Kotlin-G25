@@ -161,6 +161,14 @@ data class ApplicationResponse(
 @JsonClass(generateAdapter = true)
 data class TopOfferDto(val title: String, val total: Int)
 
+@JsonClass(generateAdapter = true)
+data class AvgPerSemesterDto(
+    val semester: Int,
+    @field:Json(name = "avg_applications") val avgApplications: Float,
+    @field:Json(name = "total_students") val totalStudents: Int,
+    @field:Json(name = "total_applications") val totalApplications: Int
+)
+
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
 interface ApiService {
@@ -207,4 +215,8 @@ interface ApiService {
 
     @GET("applications/bq/top-offers")
     suspend fun getTopOffers(): List<TopOfferDto>
+
+    @GET("applications/bq/avg-per-semester")
+    suspend fun getAvgApplicationsPerSemester(): List<AvgPerSemesterDto>
+
 }

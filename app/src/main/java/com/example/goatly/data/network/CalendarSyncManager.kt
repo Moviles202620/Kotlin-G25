@@ -37,6 +37,28 @@ object CalendarSyncManager {
         durationHours: Int,
         location: String
     ): Boolean {
+        // DEBUG — listar todos los calendarios disponibles
+        try {
+            val projection = arrayOf(
+                CalendarContract.Calendars._ID,
+                CalendarContract.Calendars.IS_PRIMARY,
+                CalendarContract.Calendars.ACCOUNT_TYPE,
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME
+            )
+            context.contentResolver.query(
+                CalendarContract.Calendars.CONTENT_URI,
+                projection, null, null, null
+            )?.use { cursor ->
+                Log.d("CalendarSync", "=== Calendarios disponibles: ${cursor.count} ===")
+                while (cursor.moveToNext()) {
+                    Log.d("CalendarSync", "ID=${cursor.getLong(0)} isPrimary=${cursor.getInt(1)} type=${cursor.getString(2)} name=${cursor.getString(3)}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CalendarSync", "Error listando calendarios: ${e.message}")
+        }
+        // FIN DEBUG
+
         return try {
             val calendarId = getPrimaryCalendarId(context)
             if (calendarId == null) {
@@ -169,24 +191,35 @@ object CalendarSyncManager {
         return array.toString()
     }
 
+    // Sprint 3: Feature Calendar Sync — improved calendar detection
+    // Tries primary calendar first, then any Google calendar, then any available calendar
     private fun getPrimaryCalendarId(context: Context): Long? {
-        val projection = arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.IS_PRIMARY)
+        val projection = arrayOf(
+            CalendarContract.Calendars._ID,
+            CalendarContract.Calendars.IS_PRIMARY,
+            CalendarContract.Calendars.ACCOUNT_TYPE
+        )
         return try {
             context.contentResolver.query(
                 CalendarContract.Calendars.CONTENT_URI,
                 projection, null, null, null
             )?.use { cursor ->
+                var firstId: Long? = null
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(0)
                     val isPrimary = cursor.getInt(1)
-                    if (isPrimary == 1) return id
+                    val accountType = cursor.getString(2)
+                    // Guarda el primero como fallback
+                    if (firstId == null) firstId = id
+                    // Prefiere calendarios de Google o marcados como primarios
+                    if (isPrimary == 1 || accountType == "com.google") return id
                 }
-                cursor.moveToFirst()
-                if (cursor.count > 0) cursor.getLong(0) else null
+                firstId
             }
         } catch (e: Exception) {
+            Log.e("CalendarSync", "Error querying calendars: ${e.message}")
             null
         }
     }
+    // Sprint 3: Feature Calendar Sync — END
 }
-// Sprint 3: Feature Calendar Sync — END

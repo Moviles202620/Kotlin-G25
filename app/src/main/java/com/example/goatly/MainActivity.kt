@@ -26,6 +26,7 @@ import com.example.goatly.ui.profile.EditProfileScreen
 import com.example.goatly.ui.profile.ProfileViewModel
 import com.example.goatly.ui.profile.SettingsScreen
 import com.example.goatly.ui.theme.GoatlyTheme
+import com.example.goatly.data.repository.RepositoryProvider
 
 class MainActivity : FragmentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
@@ -35,7 +36,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         TokenManager.init(this)
-
+        RepositoryProvider.init(this) // Sprint 3: Local Storage — inject context for Room
         if (TokenManager.isLoggedIn()) {
             tryBiometricLogin()
         } else {

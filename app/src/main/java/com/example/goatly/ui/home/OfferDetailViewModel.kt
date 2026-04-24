@@ -14,6 +14,7 @@ import com.example.goatly.data.repository.RepositoryProvider
 import com.google.android.gms.location.LocationCallback
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -148,13 +149,7 @@ class OfferDetailViewModel(
         }
     }
 
-    // Sprint 3: Feature Calendar Sync — applyAndSyncCalendar
-    // Runs two parallel coroutines using async/await:
-    // Coroutine 1: POST application to backend
-    // Coroutine 2: Insert event into device calendar (only if addToCalendar = true)
-    // This is the multi-threading strategy for Sprint 3.
-    fun applyAndSyncCalendar(
-        context: Context,
+    fun applyWithDetails(
         offerId: String,
         applicantName: String,
         career: String,
@@ -162,7 +157,6 @@ class OfferDetailViewModel(
         gpa: Float,
         availability: String,
         motivationLetter: String,
-        addToCalendar: Boolean,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
@@ -192,35 +186,9 @@ class OfferDetailViewModel(
                     motivationLetter = motivationLetter
                 )
 
-                // Sprint 3: Multi-threading — parallel coroutines with async/await
-                val backendJob = async(Dispatchers.IO) {
-                    RetrofitClient.api.applyToOffer("Bearer $token", request)
-                }
-
-                val calendarJob = async(Dispatchers.IO) {
-                    if (addToCalendar) {
-                        CalendarSyncManager.addOfferToCalendar(
-                            context = context,
-                            offerId = offerId,
-                            title = _state.value.title,
-                            dateTimeMillis = _state.value.offerDateMillis,
-                            durationHours = _state.value.offerDurationHours,
-                            location = _state.value.offerLocationText
-                        )
-                    } else false
-                }
-
-                backendJob.await()
-                val calendarSuccess = calendarJob.await()
-                // Sprint 3: Multi-threading — END
-
-                _state.value = _state.value.copy(
-                    hasApplied = true,
-                    isAddedToCalendar = addToCalendar && calendarSuccess,
-                    isCalendarPending = addToCalendar && !calendarSuccess
-                )
+                RetrofitClient.api.applyToOffer("Bearer $token", request)
+                _state.value = _state.value.copy(hasApplied = true)
                 onSuccess()
-
             } catch (e: HttpException) {
                 _error.value = when (e.code()) {
                     409 -> "Ya has aplicado a esta oferta"
@@ -231,6 +199,105 @@ class OfferDetailViewModel(
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    // Sprint 3: Feature Calendar Sync — applyAndSyncCalendar
+    // Sprint 3: Multi-threading — three coroutine dispatchers:
+    // - Dispatchers.IO for backend call (network)
+    // - Dispatchers.IO for calendar insert (I/O)
+    // - Dispatchers.Main for UI state update (main thread)
+    fun applyAndSyncCalendar(
+        context: Context,
+        offerId: String,
+        applicantName: String,
+        career: String,
+        semester: Int,
+        gpa: Float,
+        availability: String,
+        motivationLetter: String,
+        addToCalendar: Boolean,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            val offerIdInt = offerId.toIntOrNull() ?: run {
+                _error.value = "ID de oferta inválido"
+                _isLoading.value = false
+                return@launch
+            }
+
+            val token = TokenManager.getAccessToken() ?: run {
+                _error.value = "Sesión expirada"
+                _isLoading.value = false
+                return@launch
+            }
+
+            val request = ApplyRequest(
+                offerId = offerIdInt,
+                offerTitle = _state.value.title,
+                applicantName = applicantName,
+                career = career,
+                semester = semester,
+                gpa = gpa,
+                availability = availability,
+                motivationLetter = motivationLetter
+            )
+
+            // Sprint 3: Multi-threading — Coroutine 1 on Dispatchers.IO (network)
+            // Each async has its own try/catch to avoid cancelling sibling coroutines
+            val backendJob = async(Dispatchers.IO) {
+                try {
+                    RetrofitClient.api.applyToOffer("Bearer $token", request)
+                    true
+                } catch (e: Exception) {
+                    android.util.Log.e("GOATLY", "Backend apply failed: ${e.message}")
+                    false
+                }
+            }
+
+            // Sprint 3: Multi-threading — Coroutine 2 on Dispatchers.IO (calendar I/O)
+            val calendarJob = async(Dispatchers.IO) {
+                try {
+                    if (addToCalendar) {
+                        CalendarSyncManager.addOfferToCalendar(
+                            context = context,
+                            offerId = offerId,
+                            title = _state.value.title,
+                            dateTimeMillis = _state.value.offerDateMillis,
+                            durationHours = _state.value.offerDurationHours,
+                            location = _state.value.offerLocationText
+                        )
+                    } else false
+                } catch (e: Exception) {
+                    android.util.Log.e("GOATLY", "Calendar insert failed: ${e.message}")
+                    false
+                }
+            }
+
+            val backendSuccess = backendJob.await()
+            val calendarSuccess = calendarJob.await()
+
+            // Sprint 3: Multi-threading — Coroutine 3 on Dispatchers.Main (UI update)
+            withContext(Dispatchers.Main) {
+                if (backendSuccess) {
+                    _state.value = _state.value.copy(
+                        hasApplied = true,
+                        isAddedToCalendar = addToCalendar && calendarSuccess,
+                        isCalendarPending = addToCalendar && !calendarSuccess
+                    )
+                    onSuccess()
+                } else {
+                    // Sprint 3: Eventual Connectivity — close dialog first, then show error
+                    onSuccess() // cierra el dialog
+                    _error.value = "No hay conexión a internet. Intenta de nuevo cuando tengas red."
+                }
+            }
+            // Sprint 3: Multi-threading — END
+
+            _isLoading.value = false
         }
     }
     // Sprint 3: Feature Calendar Sync — END applyAndSyncCalendar

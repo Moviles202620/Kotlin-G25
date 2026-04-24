@@ -5,8 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.goatly.data.model.OfferModel
 import com.example.goatly.data.network.LocationManager
+import com.example.goatly.data.repository.ApiApplicationRepository
 import com.example.goatly.data.repository.ApiOfferRepository
 import com.example.goatly.data.repository.RepositoryProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +18,8 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 class HomeViewModel(
-    private val offerRepository: ApiOfferRepository = RepositoryProvider.offerRepository
+    private val offerRepository: ApiOfferRepository = RepositoryProvider.offerRepository,
+    private val applicationRepository: ApiApplicationRepository = RepositoryProvider.applicationRepository
 ) : ViewModel() {
 
     data class OfferUiItem(
@@ -59,6 +63,15 @@ class HomeViewModel(
 
     private val _userLat = MutableStateFlow<Double?>(null)
     private val _userLng = MutableStateFlow<Double?>(null)
+
+    // Sprint 3: BQ12 — Average GPA near location
+    // Stores the computed average GPA of applicants to offers within 2km of the student
+    private val _avgGpaNearby = MutableStateFlow<Float?>(null)
+    val avgGpaNearby: StateFlow<Float?> = _avgGpaNearby.asStateFlow()
+
+    private val _bqLoading = MutableStateFlow(false)
+    val bqLoading: StateFlow<Boolean> = _bqLoading.asStateFlow()
+    // Sprint 3: BQ12 — END
 
     init { refresh() }
 
@@ -109,8 +122,68 @@ class HomeViewModel(
             _userLat.value = lat
             _userLng.value = lng
             refresh()
+            // Sprint 3: BQ12 — compute average GPA when location is available
+            computeAvgGpaNearby()
+            // Sprint 3: BQ12 — END
         }
     }
+
+    // Sprint 3: BQ12 — "What is the average GPA of students who have applied to offers near the student's current location?"
+    // Strategy: fetch offers + applications in parallel (async/await on Dispatchers.IO),
+    // filter offers within 2km of student, cross-reference with applications, compute average GPA.
+    // Data comes from the real FastAPI backend — no manual files or mock data.
+    fun computeAvgGpaNearby() {
+        val userLat = _userLat.value ?: return
+        val userLng = _userLng.value ?: return
+
+        viewModelScope.launch {
+            _bqLoading.value = true
+            try {
+                // Parallel fetch: offers + applications from backend
+                val offersJob = async(Dispatchers.IO) {
+                    offerRepository.getAllSuspend()
+                }
+                val applicationsJob = async(Dispatchers.IO) {
+                    applicationRepository.getAllSuspend()
+                }
+
+                val allOffers = offersJob.await()
+                val myApplications = applicationsJob.await()
+
+                // Filter offers within 2km of student's current location
+                val nearbyOfferIds = allOffers
+                    .filter { offer ->
+                        offer.isOnSite &&
+                                offer.latitude != null &&
+                                offer.longitude != null &&
+                                LocationManager.distanceInMeters(
+                                    userLat, userLng,
+                                    offer.latitude, offer.longitude
+                                ) <= 2000.0
+                    }
+                    .map { it.id }
+                    .toSet()
+
+                // Cross-reference with applications to get GPAs of nearby applied offers
+                val nearbyGpas = myApplications
+                    .filter { app -> nearbyOfferIds.contains(app.offerId) }
+                    .mapNotNull { app -> app.gpa }
+
+                _avgGpaNearby.value = if (nearbyGpas.isNotEmpty()) {
+                    nearbyGpas.average().toFloat()
+                } else null
+
+                android.util.Log.d("GOATLY_BQ", "BQ12: ${nearbyGpas.size} applications near location, avg GPA = ${_avgGpaNearby.value}")
+
+            } catch (e: Exception) {
+                android.util.Log.e("GOATLY_BQ", "BQ12 error: ${e.message}")
+                _avgGpaNearby.value = null
+            } finally {
+                _bqLoading.value = false
+            }
+        }
+    }
+    // Sprint 3: BQ12 — END
 
     private fun applyFilters() {
         val cat = _selectedCategory.value
@@ -118,13 +191,9 @@ class HomeViewModel(
 
         var result = _allOffers.value
 
-        // Filtro por categoría
         if (cat != null) result = result.filter { it.category == cat }
-
-        // Filtro remotas
         if (!filter.showRemote) result = result.filter { it.isOnSite }
 
-        // Filtro por distancia máxima (solo presenciales con distancia calculada)
         if (filter.maxDistanceMeters != null) {
             result = result.filter { offer ->
                 if (offer.isOnSite) {
@@ -135,7 +204,6 @@ class HomeViewModel(
             }
         }
 
-        // Ordenar por distancia
         result = result.sortedWith(compareBy {
             when {
                 !it.isOnSite -> if (filter.sortOrder == SortOrder.CLOSEST_FIRST) Double.MAX_VALUE else Double.MIN_VALUE

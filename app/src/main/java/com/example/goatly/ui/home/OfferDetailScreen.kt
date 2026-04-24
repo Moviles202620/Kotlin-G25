@@ -53,8 +53,18 @@ fun OfferDetailScreen(
     onBack: () -> Unit
 ) {
     val state by detailViewModel.state.collectAsState()
+    val error by detailViewModel.error.collectAsState()
     var showApplyDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Sprint 3: Eventual Connectivity — show error as snackbar
+    LaunchedEffect(error) {
+        error?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
+    // Sprint 3: Eventual Connectivity — END
 
     val locationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -76,6 +86,7 @@ fun OfferDetailScreen(
     val lng = state.longitude ?: -74.0657
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Detalle de oferta", fontWeight = FontWeight.W800) },
@@ -156,8 +167,6 @@ fun OfferDetailScreen(
             Spacer(Modifier.weight(1f))
 
             // Sprint 3: Feature Calendar Sync — BQ indicator
-            // Visible independently of apply status
-            // Answers BQ: "Which of the student's applied offers have been added to their calendar?"
             if (state.isAddedToCalendar) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Success.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
@@ -264,6 +273,25 @@ fun ApplyApplicationDialog(
     // Sprint 3: Feature Calendar Sync — user choice to add to calendar
     var addToCalendar by remember { mutableStateOf(true) }
     // Sprint 3: Feature Calendar Sync — END
+
+    // Sprint 3: Feature Calendar Sync — runtime permission request
+    val calendarPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[android.Manifest.permission.READ_CALENDAR] == true &&
+                permissions[android.Manifest.permission.WRITE_CALENDAR] == true
+        android.util.Log.d("CalendarSync", "Calendar permissions granted: $granted")
+    }
+
+    LaunchedEffect(Unit) {
+        calendarPermissionLauncher.launch(
+            arrayOf(
+                android.Manifest.permission.READ_CALENDAR,
+                android.Manifest.permission.WRITE_CALENDAR
+            )
+        )
+    }
+    // Sprint 3: Feature Calendar Sync — END runtime permission
 
     var nameError by remember { mutableStateOf<String?>(null) }
     var semesterError by remember { mutableStateOf<String?>(null) }
@@ -418,7 +446,6 @@ fun ApplyApplicationDialog(
                 }
 
                 // Sprint 3: Feature Calendar Sync — calendar toggle
-                // User decides whether to add this offer to their device calendar
                 HorizontalDivider(color = AppColors.Border)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -442,7 +469,17 @@ fun ApplyApplicationDialog(
                     }
                     Switch(
                         checked = addToCalendar,
-                        onCheckedChange = { addToCalendar = it },
+                        onCheckedChange = { checked ->
+                            addToCalendar = checked
+                            if (checked) {
+                                calendarPermissionLauncher.launch(
+                                    arrayOf(
+                                        android.Manifest.permission.READ_CALENDAR,
+                                        android.Manifest.permission.WRITE_CALENDAR
+                                    )
+                                )
+                            }
+                        },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = AppColors.DarkText,
                             checkedTrackColor = AppColors.PrimaryYellow

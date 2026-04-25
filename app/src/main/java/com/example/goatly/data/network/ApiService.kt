@@ -170,6 +170,17 @@ data class GpaByOfferDto(
     @field:Json(name = "min_gpa") val minGpa: Float,
     @field:Json(name = "max_gpa") val maxGpa: Float
 )
+
+// BQ14 — Avg applications per semester (Andrés Cárdenas)
+@JsonClass(generateAdapter = true)
+data class AvgPerSemesterDto(
+    val semester: Int,
+    @field:Json(name = "avg_applications") val avgApplications: Float,
+    @field:Json(name = "total_students") val totalStudents: Int,
+    @field:Json(name = "total_applications") val totalApplications: Int
+)
+
+
 // Sprint 3: BQ — END
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -223,4 +234,7 @@ interface ApiService {
     @GET("analytics/gpa-by-offer")
     suspend fun getGpaByOffer(): List<GpaByOfferDto>
     // Sprint 3: BQ — END
+
+    @GET("applications/bq/avg-per-semester")
+    suspend fun getAvgApplicationsPerSemester(): List<AvgPerSemesterDto>
 }

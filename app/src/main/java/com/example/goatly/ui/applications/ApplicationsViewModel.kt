@@ -164,9 +164,12 @@ class ApplicationsViewModel : ViewModel() {
                             .also { android.util.Log.d("GOATLY_ASYNC", "topOffers END: ${System.currentTimeMillis()}") }
                     }
                     val avgSemesterDeferred = async(Dispatchers.IO) {
-                        android.util.Log.d("GOATLY_ASYNC", "avgSemester START: ${System.currentTimeMillis()}")
-                        RetrofitClient.api.getAvgApplicationsPerSemester()
-                            .also { android.util.Log.d("GOATLY_ASYNC", "avgSemester END: ${System.currentTimeMillis()}") }
+                        try {
+                            RetrofitClient.api.getAvgApplicationsPerSemester()
+                        } catch (e: Exception) {
+                            android.util.Log.w("GOATLY", "avg-per-semester not available: ${e.message}")
+                            emptyList()
+                        }
                     }
                     Triple(appsDeferred.await(), topOffersDeferred.await(), avgSemesterDeferred.await())
                 }

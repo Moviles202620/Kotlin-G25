@@ -38,6 +38,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         TokenManager.init(this)
         RepositoryProvider.init(this) // Sprint 3: Local Storage — inject context for Room
+        LocalProvider.init(this) // Sprint 3: Local Storage — init DataStore and AppDatabase
         if (TokenManager.isLoggedIn()) {
             tryBiometricLogin()
         } else {

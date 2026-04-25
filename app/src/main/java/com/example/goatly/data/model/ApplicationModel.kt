@@ -15,5 +15,8 @@ data class ApplicationModel(
     val offerId: String,
     val offerTitle: String,
     val createdAt: Date,
-    val status: ApplicationStatus  // val + copy() en lugar de var mutable
+    val status: ApplicationStatus,
+    // Sprint 3: BQ12 — GPA needed for average GPA near location computation
+    val gpa: Float? = null
+    // Sprint 3: BQ12 — END
 )

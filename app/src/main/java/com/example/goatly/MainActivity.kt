@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.goatly.data.LocalProvider
 import com.example.goatly.data.network.TokenManager
 import com.example.goatly.ui.applications.ApplicationDetailScreen
 import com.example.goatly.ui.applications.ApplicationsViewModel
@@ -26,6 +27,7 @@ import com.example.goatly.ui.profile.EditProfileScreen
 import com.example.goatly.ui.profile.ProfileViewModel
 import com.example.goatly.ui.profile.SettingsScreen
 import com.example.goatly.ui.theme.GoatlyTheme
+import com.example.goatly.data.repository.RepositoryProvider
 
 class MainActivity : FragmentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
@@ -35,7 +37,8 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         TokenManager.init(this)
-
+        RepositoryProvider.init(this) // Sprint 3: Local Storage — inject context for Room
+        LocalProvider.init(this) // Sprint 3: Local Storage — init DataStore and AppDatabase
         if (TokenManager.isLoggedIn()) {
             tryBiometricLogin()
         } else {
@@ -194,24 +197,20 @@ fun GoatlyStudentApp(
         composable(Routes.APPLICATION_DETAIL) { backStackEntry ->
             val applicationId = backStackEntry.arguments?.getString("applicationId")?.toIntOrNull() ?: return@composable
             val uiState by appsViewModel.uiState.collectAsStateWithLifecycle()
-            when (uiState) {
-                is ApplicationsViewModel.UiState.Success -> {
-                    val apps = (uiState as ApplicationsViewModel.UiState.Success).response.applications
-                    val selectedApp = apps.find { it.id == applicationId }
-                    if (selectedApp != null) {
-                        appsViewModel.selectApplication(selectedApp)
-                        ApplicationDetailScreen(
-                            appsViewModel = appsViewModel,
-                            onBack = { navController.popBackStack() }
-                        )
-                    } else {
-                        navController.popBackStack()
-                    }
-                }
-                else -> {
-                    // Loading or Error state - go back
-                    navController.popBackStack()
-                }
+            val apps = when (val s = uiState) {
+                is ApplicationsViewModel.UiState.Success -> s.response.applications
+                is ApplicationsViewModel.UiState.SuccessOffline -> s.applications
+                else -> emptyList()
+            }
+            val selectedApp = apps.find { it.id == applicationId }
+            if (selectedApp != null) {
+                appsViewModel.selectApplication(selectedApp)
+                ApplicationDetailScreen(
+                    appsViewModel = appsViewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            } else if (uiState !is ApplicationsViewModel.UiState.Loading) {
+                navController.popBackStack()
             }
         }
     }

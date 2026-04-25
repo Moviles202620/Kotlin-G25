@@ -118,13 +118,9 @@ class HomeViewModel(
 
         var result = _allOffers.value
 
-        // Filtro por categoría
         if (cat != null) result = result.filter { it.category == cat }
-
-        // Filtro remotas
         if (!filter.showRemote) result = result.filter { it.isOnSite }
 
-        // Filtro por distancia máxima (solo presenciales con distancia calculada)
         if (filter.maxDistanceMeters != null) {
             result = result.filter { offer ->
                 if (offer.isOnSite) {
@@ -135,7 +131,6 @@ class HomeViewModel(
             }
         }
 
-        // Ordenar por distancia
         result = result.sortedWith(compareBy {
             when {
                 !it.isOnSite -> if (filter.sortOrder == SortOrder.CLOSEST_FIRST) Double.MAX_VALUE else Double.MIN_VALUE

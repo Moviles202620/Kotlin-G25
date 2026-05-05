@@ -3,19 +3,23 @@ package com.example.goatly.data.network
 import android.util.Log
 import com.example.goatly.data.model.OfferModel
 
-// Sprint 3: In-memory LRU Cache
+// ============================================================
+// Isabella — Sprint 3: Caching — LRU OfferCache
+// ============================================================
 // Singleton LRU cache for offers. Uses LinkedHashMap with accessOrder=true so the
-// least-recently-accessed entry is evicted first when the cache exceeds MAX_SIZE (50).
+// least-recently-accessed entry is evicted first when the cache exceeds MAX_SIZE.
 // Each entry also carries a timestamp for TTL-based expiration (5 minutes).
 // This means the cache manages both recency (LRU) and freshness (TTL) independently.
 object OfferCache {
 
     private const val TAG = "GOATLY_LRU"
     private const val CACHE_TTL_MS = 5 * 60 * 1000L  // 5 minutes
-    private const val MAX_SIZE = 50
+    private const val MAX_SIZE = 100
 
+    // Isabella — Sprint 3: Caching — LRU structure
     // accessOrder=true: on every get(), the accessed entry moves to the tail.
     // removeEldestEntry evicts the head (least recently accessed) when size > MAX_SIZE.
+    // Constructor params: initialCapacity=16, loadFactor=0.75f, accessOrder=true
     private val cache = object : LinkedHashMap<String, Pair<OfferModel, Long>>(
         16, 0.75f, true
     ) {
@@ -36,15 +40,16 @@ object OfferCache {
         return System.currentTimeMillis() - entry.second < CACHE_TTL_MS
     }
 
+    // Isabella — Sprint 3: Caching — fresh cache check
     // True if there is at least one non-expired entry — used to decide
-    // whether the full list can be served from cache
+    // whether the full list can be served from cache without a network call
     fun hasValidEntries(): Boolean {
         if (cache.isEmpty()) return false
         return cache.values.any { System.currentTimeMillis() - it.second < CACHE_TTL_MS }
     }
 
-    // Get a single offer by id — returns null if missing or expired
-    // Accessing an entry via get() moves it to the tail (most recently used)
+    // Isabella — Sprint 3: Caching — single get (LRU access order update)
+    // Accessing an entry via get() moves it to the tail (most recently used position)
     fun get(offerId: String): OfferModel? {
         val entry = cache[offerId] ?: return null
         return if (System.currentTimeMillis() - entry.second < CACHE_TTL_MS) {
@@ -57,7 +62,7 @@ object OfferCache {
         }
     }
 
-    // Get all non-expired offers — used for Level 1 fresh cache hit
+    // Isabella — Sprint 3: Caching — get fresh entries only (Level 1 fallback)
     fun getAll(): List<OfferModel> {
         val valid = cache.values
             .filter { System.currentTimeMillis() - it.second < CACHE_TTL_MS }
@@ -67,14 +72,16 @@ object OfferCache {
         return valid
     }
 
-    // Get all entries including expired ones — used for Level 3 stale fallback
+    // Isabella — Sprint 3: Eventual Connectivity — stale fallback (Level 3)
+    // Returns all entries including expired ones — better to show stale data than nothing
     fun getAllStale(): List<OfferModel> {
         val all = cache.values.map { it.first }
         Log.d(TAG, "LRU getAllStale — serving ${all.size} entries (including expired) as offline fallback")
         return all
     }
 
-    // Store offers after a successful network fetch — keyed by offer id
+    // Isabella — Sprint 3: Caching — populate LRU after successful network fetch
+    // Keyed by offer id so individual offers can be accessed and promoted in LRU order
     fun putAll(offers: List<OfferModel>) {
         val now = System.currentTimeMillis()
         offers.forEach { cache[it.id] = Pair(it, now) }

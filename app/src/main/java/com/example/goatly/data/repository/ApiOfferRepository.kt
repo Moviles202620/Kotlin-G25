@@ -25,19 +25,20 @@ class ApiOfferRepository(
         throw UnsupportedOperationException("Not supported from student app")
     }
 
+    // ============================================================
+    // Isabella — Sprint 3: Eventual Connectivity — 4-level fallback
+    // ============================================================
     suspend fun getAllSuspend(): List<OfferModel> {
 
-        // Sprint 3: In-memory LRU Cache — Level 1: fresh cache hit
-        // OfferCache uses a LinkedHashMap with accessOrder=true (LRU eviction)
-        // and a TTL of 5 minutes per entry. If entries are fresh, serve directly
-        // without a network call — reduces latency and supports offline access.
+        // Isabella — Sprint 3: Caching — Level 1: LRU fresh cache hit
+        // If entries exist and TTL has not expired, serve directly without network call
         if (OfferCache.hasValidEntries()) {
             android.util.Log.d("GOATLY", "Serving offers from LRU cache")
             return OfferCache.getAll()
         }
-        // Sprint 3: In-memory LRU Cache — END Level 1
 
         return try {
+            // Isabella — Sprint 3: Eventual Connectivity — Level 2: network fetch
             val offers = api.getAllOffers().map { offer ->
                 OfferModel(
                     id = offer.id.toString(),
@@ -52,14 +53,11 @@ class ApiOfferRepository(
                 )
             }
 
-            // Sprint 3: In-memory LRU Cache — Level 2: populate LRU cache after successful fetch
-            // putAll keys each offer by its id — LRU evicts least-recently-accessed
-            // entries automatically when size exceeds MAX_SIZE (50)
+            // Isabella — Sprint 3: Caching — populate LRU after successful fetch
             OfferCache.putAll(offers)
             android.util.Log.d("GOATLY", "Offers fetched from network and stored in LRU cache (${offers.size} items)")
-            // Sprint 3: In-memory LRU Cache — END Level 2
 
-            // Sprint 3: Local Storage — persist to Room database
+            // Isabella — Sprint 3: Local Storage — persist to Room after successful fetch
             context?.let { ctx ->
                 val db = GoatlyDatabase.getInstance(ctx)
                 val entities = offers.map { offer ->
@@ -78,23 +76,21 @@ class ApiOfferRepository(
                 db.offerDao().insertAll(entities)
                 android.util.Log.d("GOATLY", "Offers persisted to Room (${entities.size} rows)")
             }
-            // Sprint 3: Local Storage — END persist
 
             offers
         } catch (e: Exception) {
             android.util.Log.e("GOATLY", "Network error loading offers: ${e.message}", e)
 
-            // Sprint 3: In-memory LRU Cache — Level 3: stale LRU fallback
-            // getAllStale() returns all entries regardless of TTL expiration —
-            // better to show slightly outdated data than nothing at all
+            // Isabella — Sprint 3: Caching — Level 3: stale LRU fallback
+            // Serve expired entries rather than nothing when network fails
             val stale = OfferCache.getAllStale()
             if (stale.isNotEmpty()) {
                 android.util.Log.d("GOATLY", "Network failed — serving stale LRU cache (${stale.size} items)")
                 return stale
             }
-            // Sprint 3: In-memory LRU Cache — END Level 3
 
-            // Sprint 3: Local Storage — Level 4: Room database fallback
+            // Isabella — Sprint 3: Local Storage — Level 4: Room database fallback
+            // Room persists offers across sessions — survives app restarts without network
             context?.let { ctx ->
                 val db = GoatlyDatabase.getInstance(ctx)
                 val cached = db.offerDao().getAll()
@@ -115,7 +111,6 @@ class ApiOfferRepository(
                     }
                 }
             }
-            // Sprint 3: Local Storage — END Level 4
 
             // Level 5: Mock fallback — last resort
             android.util.Log.d("GOATLY", "All fallbacks exhausted — using mock data")

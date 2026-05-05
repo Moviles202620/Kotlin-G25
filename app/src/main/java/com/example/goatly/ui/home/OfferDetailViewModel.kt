@@ -45,17 +45,15 @@ class OfferDetailViewModel(
         val distanceText: String? = null,
         val userLatitude: Double? = null,
         val userLongitude: Double? = null,
-        // Sprint 3: Feature Calendar Sync — state fields for BQ indicator
+        // Isabella — Sprint 3: Calendar Sync — state fields
         val isAddedToCalendar: Boolean = false,
         val isCalendarPending: Boolean = false,
         val offerDateMillis: Long = 0L,
         val offerDurationHours: Int = 0,
         val offerLocationText: String = "",
-        // Sprint 3: Feature Calendar Sync — END state fields
-        // Sprint 3: BQ — Average GPA of applicants to this offer
+        // Isabella — Sprint 3: BQ12 — Average GPA state fields
         val avgGpa: Float? = null,
         val totalApplicants: Int = 0
-        // Sprint 3: BQ — END
     )
 
     private val _state = MutableStateFlow(OfferDetailUiState())
@@ -85,11 +83,10 @@ class OfferDetailViewModel(
                 false
             }
 
-            // Sprint 3: Feature Calendar Sync — load persisted calendar state
+            // Isabella — Sprint 3: Calendar Sync — load persisted calendar state
             val isSynced = CalendarSyncManager.isOfferSynced(context, offer.id)
             val isPending = CalendarSyncManager.isOfferPending(context, offer.id)
             Log.d("GOATLY_CAL", "load — offer ${offer.id} calendar state: synced=$isSynced pending=$isPending")
-            // Sprint 3: Feature Calendar Sync — END
 
             _state.value = OfferDetailUiState(
                 id = offer.id,
@@ -116,9 +113,8 @@ class OfferDetailViewModel(
                 startTrackingLocation(context)
             }
 
-            // Sprint 3: BQ — load GPA data for this offer
+            // Isabella — Sprint 3: BQ12 — load GPA analytics for this offer
             loadGpaForOffer(offerId)
-            // Sprint 3: BQ — END
         }
     }
 
@@ -212,11 +208,13 @@ class OfferDetailViewModel(
         }
     }
 
-    // Sprint 3: Feature Calendar Sync — applyAndSyncCalendar
-    // Sprint 3: Multi-threading — three coroutine dispatchers:
-    // - Dispatchers.IO for backend call (network)
-    // - Dispatchers.IO for calendar insert (I/O)
-    // - Dispatchers.Main for UI state update (main thread)
+    // ============================================================
+    // Isabella — Sprint 3: Multi-threading — 3 Dispatchers en paralelo
+    // ============================================================
+    // Coroutine 1: async(Dispatchers.IO) → POST backend (network)
+    // Coroutine 2: async(Dispatchers.IO) → CalendarContract insert (I/O)
+    // Coroutine 3: withContext(Dispatchers.Main) → UI state update
+    // Coroutines 1 and 2 run in PARALLEL — neither blocks the other
     fun applyAndSyncCalendar(
         context: Context,
         offerId: String,
@@ -256,7 +254,7 @@ class OfferDetailViewModel(
                 motivationLetter = motivationLetter
             )
 
-            // Sprint 3: Multi-threading — Coroutine 1 on Dispatchers.IO (network)
+            // Isabella — Sprint 3: Multi-threading — Coroutine 1: Dispatchers.IO (network)
             // Runs in parallel with calendarJob — does not block the calendar insert
             Log.d("GOATLY_MT", "applyAndSyncCalendar — launching backend POST on Dispatchers.IO")
             val backendJob = async(Dispatchers.IO) {
@@ -270,8 +268,8 @@ class OfferDetailViewModel(
                 }
             }
 
-            // Sprint 3: Multi-threading — Coroutine 2 on Dispatchers.IO (calendar I/O)
-            // Runs in parallel with backendJob — both are async, not sequential
+            // Isabella — Sprint 3: Multi-threading — Coroutine 2: Dispatchers.IO (calendar I/O)
+            // Runs in parallel with backendJob — calendar insert does not wait for backend
             Log.d("GOATLY_MT", "applyAndSyncCalendar — launching calendar insert on Dispatchers.IO (parallel)")
             val calendarJob = async(Dispatchers.IO) {
                 try {
@@ -299,7 +297,7 @@ class OfferDetailViewModel(
             val backendSuccess = backendJob.await()
             val calendarSuccess = calendarJob.await()
 
-            // Sprint 3: Multi-threading — Coroutine 3 on Dispatchers.Main (UI update)
+            // Isabella — Sprint 3: Multi-threading — Coroutine 3: Dispatchers.Main (UI update)
             // Only the main thread can update StateFlow observed by Compose
             Log.d("GOATLY_MT", "applyAndSyncCalendar — updating UI on Dispatchers.Main — backend=$backendSuccess calendar=$calendarSuccess")
             withContext(Dispatchers.Main) {
@@ -311,20 +309,21 @@ class OfferDetailViewModel(
                     )
                     onSuccess()
                 } else {
-                    // Sprint 3: Eventual Connectivity — close dialog then show error
+                    // Isabella — Sprint 3: Eventual Connectivity — apply sin crash offline
+                    // Close dialog via onSuccess() then show friendly Snackbar — no crash, no freeze
                     onSuccess()
                     _error.value = "No hay conexión a internet. Intenta de nuevo cuando tengas red."
                 }
             }
-            // Sprint 3: Multi-threading — END
 
             _isLoading.value = false
         }
     }
-    // Sprint 3: Feature Calendar Sync — END applyAndSyncCalendar
 
-    // Sprint 3: BQ12 — "What is the average GPA of students who applied to this offer?"
-    // Type 2: result is displayed directly in OfferDetailScreen as a COMPETENCIA card.
+    // ============================================================
+    // Isabella — Sprint 3: BQ12 — Average GPA of applicants
+    // ============================================================
+    // Type 2: result is displayed directly in OfferDetailScreen as COMPETENCIA card.
     // Runs on Dispatchers.IO to avoid blocking the main thread during network call,
     // then switches to Dispatchers.Main to update StateFlow safely.
     private fun loadGpaForOffer(offerId: String) {
@@ -347,5 +346,4 @@ class OfferDetailViewModel(
             }
         }
     }
-    // Sprint 3: BQ — END
 }

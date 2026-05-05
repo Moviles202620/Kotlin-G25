@@ -1,5 +1,6 @@
 package com.example.goatly.ui.auth
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.goatly.data.model.UserModel
@@ -35,18 +36,25 @@ class AuthViewModel(
                 val result = authRepository.loginSuspend(email, password)
                 if (result != null) {
                     _user.value = result
-                    // Sprint 3: Eventual Connectivity — persist user profile locally
+                    // Isabella — Sprint 3: Eventual Connectivity — persist profile for offline restore
                     TokenManager.saveUserProfile(result)
+                    Log.d("GOATLY_EVC", "login — success, profile saved locally for ${result.email}")
                     onSuccess()
                 } else {
+                    Log.w("GOATLY_EVC", "login — failed, wrong credentials")
                     _loginError.value = "Correo o contraseña incorrectos"
                 }
             } catch (e: Exception) {
                 if (e.message == "STAFF_ROLE") {
+                    Log.w("GOATLY_EVC", "login — blocked, staff role detected")
                     _loginError.value = "Esta app es solo para estudiantes. Si eres funcionario, usa la aplicación correspondiente."
                 } else if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketTimeoutException) {
+                    // Isabella — Sprint 3: Eventual Connectivity — vista protegida
+                    // Login requires network — show specific message instead of generic error
+                    Log.e("GOATLY_EVC", "login — no network, cannot authenticate: ${e.message}")
                     _loginError.value = "Para iniciar sesión, por favor conéctese a internet."
                 } else {
+                    Log.e("GOATLY_EVC", "login — unexpected error: ${e.message}")
                     _loginError.value = "Correo o contraseña incorrectos"
                 }
             }
@@ -55,8 +63,9 @@ class AuthViewModel(
     }
 
     fun logout() {
+        Log.d("GOATLY_EVC", "logout — clearing token and local profile for ${_user.value?.email}")
         authRepository.logout()
-        // Sprint 3: Eventual Connectivity — clear local profile on explicit logout
+        // Isabella — Sprint 3: Eventual Connectivity — clear local profile on explicit logout
         TokenManager.clearUserProfile()
         _user.value = null
     }
@@ -68,21 +77,27 @@ class AuthViewModel(
             val result = authRepository.registerSuspend(name, email, password, major, role)
             if (result != null) {
                 _user.value = result
-                // Sprint 3: Eventual Connectivity — persist user profile locally
+                // Isabella — Sprint 3: Eventual Connectivity — persist profile after register
                 TokenManager.saveUserProfile(result)
+                Log.d("GOATLY_EVC", "register — success, profile saved locally for ${result.email}")
                 onSuccess()
             } else {
+                Log.w("GOATLY_EVC", "register — failed")
                 _loginError.value = "No se pudo crear la cuenta. Intenta de nuevo."
             }
             _isLoading.value = false
         }
     }
 
-    // Sprint 3: Eventual Connectivity — restoreSession with offline fallback
+    // ============================================================
+    // Isabella — Sprint 3: Eventual Connectivity — Session Restore
+    // ============================================================
     // If network is unavailable, restore user profile from SharedPreferences
-    // instead of clearing the token and forcing re-login
+    // instead of clearing the token and forcing re-login.
+    // This means the student keeps access to job offers even without internet.
     fun restoreSession(onDone: () -> Unit) {
         viewModelScope.launch {
+            Log.d("GOATLY_EVC", "restoreSession — attempting network restore")
             try {
                 val token = TokenManager.getAccessToken()
                 if (token != null) {
@@ -97,24 +112,27 @@ class AuthViewModel(
                         isDarkMode = me.isDarkMode
                     )
                     _user.value = user
-                    // Update cached profile with fresh data
+                    // Update cached profile with fresh data from network
                     TokenManager.saveUserProfile(user)
+                    Log.d("GOATLY_EVC", "restoreSession — network ok, fresh profile loaded for ${user.email}")
+                } else {
+                    Log.w("GOATLY_EVC", "restoreSession — no token found, skipping")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("GoatlyNet", "restoreSession network failed — trying local profile: ${e.message}")
-                // Sprint 3: Eventual Connectivity — fallback to locally cached profile
+                Log.e("GOATLY_EVC", "restoreSession — network failed (${e.message}), trying local profile")
+                // Isabella — Sprint 3: Eventual Connectivity — offline fallback
+                // Use locally cached profile from SharedPreferences instead of forcing re-login
                 val cachedUser = TokenManager.getUserProfile()
                 if (cachedUser != null) {
-                    android.util.Log.d("GoatlyNet", "Restored session from local profile: ${cachedUser.email}")
                     _user.value = cachedUser
+                    Log.d("GOATLY_EVC", "restoreSession — offline fallback ok, session restored for ${cachedUser.email}")
                 } else {
-                    // No cached profile and no network — force re-login
-                    android.util.Log.w("GoatlyNet", "No cached profile found — clearing token")
+                    // No cached profile and no network — force re-login as last resort
+                    Log.w("GOATLY_EVC", "restoreSession — no cached profile found, clearing token and forcing re-login")
                     TokenManager.clear()
                 }
             }
             onDone()
         }
     }
-    // Sprint 3: Eventual Connectivity — END
 }

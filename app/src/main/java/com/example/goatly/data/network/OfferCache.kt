@@ -1,5 +1,6 @@
 package com.example.goatly.data.network
 
+import android.util.Log
 import com.example.goatly.data.model.OfferModel
 
 // Sprint 3: In-memory LRU Cache
@@ -9,6 +10,7 @@ import com.example.goatly.data.model.OfferModel
 // This means the cache manages both recency (LRU) and freshness (TTL) independently.
 object OfferCache {
 
+    private const val TAG = "GOATLY_LRU"
     private const val CACHE_TTL_MS = 5 * 60 * 1000L  // 5 minutes
     private const val MAX_SIZE = 50
 
@@ -19,7 +21,13 @@ object OfferCache {
     ) {
         override fun removeEldestEntry(
             eldest: Map.Entry<String, Pair<OfferModel, Long>>
-        ) = size > MAX_SIZE
+        ): Boolean {
+            val shouldEvict = size > MAX_SIZE
+            if (shouldEvict) {
+                Log.d(TAG, "LRU eviction triggered — removing least recently accessed offer: id=${eldest.key} title='${eldest.value.first.title}'")
+            }
+            return shouldEvict
+        }
     }
 
     // True if the specific offer is cached and its TTL has not expired
@@ -36,32 +44,47 @@ object OfferCache {
     }
 
     // Get a single offer by id — returns null if missing or expired
+    // Accessing an entry via get() moves it to the tail (most recently used)
     fun get(offerId: String): OfferModel? {
         val entry = cache[offerId] ?: return null
         return if (System.currentTimeMillis() - entry.second < CACHE_TTL_MS) {
+            Log.d(TAG, "LRU single get — cache hit for offer id=$offerId (moved to MRU position)")
             entry.first
         } else {
+            Log.d(TAG, "LRU single get — entry expired for offer id=$offerId, removing")
             cache.remove(offerId)
             null
         }
     }
 
     // Get all non-expired offers — used for Level 1 fresh cache hit
-    fun getAll(): List<OfferModel> =
-        cache.values
+    fun getAll(): List<OfferModel> {
+        val valid = cache.values
             .filter { System.currentTimeMillis() - it.second < CACHE_TTL_MS }
             .map { it.first }
+        val expired = cache.size - valid.size
+        Log.d(TAG, "LRU getAll — ${valid.size} fresh entries served, $expired expired entries skipped, capacity=$MAX_SIZE")
+        return valid
+    }
 
     // Get all entries including expired ones — used for Level 3 stale fallback
-    // when network fails and TTL has passed but Room is also empty
-    fun getAllStale(): List<OfferModel> = cache.values.map { it.first }
+    fun getAllStale(): List<OfferModel> {
+        val all = cache.values.map { it.first }
+        Log.d(TAG, "LRU getAllStale — serving ${all.size} entries (including expired) as offline fallback")
+        return all
+    }
 
     // Store offers after a successful network fetch — keyed by offer id
     fun putAll(offers: List<OfferModel>) {
         val now = System.currentTimeMillis()
         offers.forEach { cache[it.id] = Pair(it, now) }
+        Log.d(TAG, "LRU putAll — stored ${offers.size} offers, cache size now=${cache.size}/$MAX_SIZE")
     }
 
     // Force full invalidation — call when user manually refreshes
-    fun invalidate() = cache.clear()
+    fun invalidate() {
+        val size = cache.size
+        cache.clear()
+        Log.d(TAG, "LRU invalidated — cleared $size entries")
+    }
 }

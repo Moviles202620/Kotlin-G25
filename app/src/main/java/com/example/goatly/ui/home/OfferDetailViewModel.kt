@@ -1,6 +1,7 @@
 package com.example.goatly.ui.home
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.goatly.data.network.ApplyRequest
@@ -87,6 +88,7 @@ class OfferDetailViewModel(
             // Sprint 3: Feature Calendar Sync — load persisted calendar state
             val isSynced = CalendarSyncManager.isOfferSynced(context, offer.id)
             val isPending = CalendarSyncManager.isOfferPending(context, offer.id)
+            Log.d("GOATLY_CAL", "load — offer ${offer.id} calendar state: synced=$isSynced pending=$isPending")
             // Sprint 3: Feature Calendar Sync — END
 
             _state.value = OfferDetailUiState(
@@ -255,21 +257,26 @@ class OfferDetailViewModel(
             )
 
             // Sprint 3: Multi-threading — Coroutine 1 on Dispatchers.IO (network)
+            // Runs in parallel with calendarJob — does not block the calendar insert
+            Log.d("GOATLY_MT", "applyAndSyncCalendar — launching backend POST on Dispatchers.IO")
             val backendJob = async(Dispatchers.IO) {
                 try {
                     RetrofitClient.api.applyToOffer("Bearer $token", request)
+                    Log.d("GOATLY_MT", "applyAndSyncCalendar — backend POST success on Dispatchers.IO")
                     true
                 } catch (e: Exception) {
-                    android.util.Log.e("GOATLY", "Backend apply failed: ${e.message}")
+                    Log.e("GOATLY_MT", "applyAndSyncCalendar — backend POST failed on Dispatchers.IO: ${e.message}")
                     false
                 }
             }
 
             // Sprint 3: Multi-threading — Coroutine 2 on Dispatchers.IO (calendar I/O)
+            // Runs in parallel with backendJob — both are async, not sequential
+            Log.d("GOATLY_MT", "applyAndSyncCalendar — launching calendar insert on Dispatchers.IO (parallel)")
             val calendarJob = async(Dispatchers.IO) {
                 try {
                     if (addToCalendar) {
-                        CalendarSyncManager.addOfferToCalendar(
+                        val result = CalendarSyncManager.addOfferToCalendar(
                             context = context,
                             offerId = offerId,
                             title = _state.value.title,
@@ -277,9 +284,14 @@ class OfferDetailViewModel(
                             durationHours = _state.value.offerDurationHours,
                             location = _state.value.offerLocationText
                         )
-                    } else false
+                        Log.d("GOATLY_MT", "applyAndSyncCalendar — calendar insert on Dispatchers.IO result=$result")
+                        result
+                    } else {
+                        Log.d("GOATLY_MT", "applyAndSyncCalendar — calendar insert skipped (user did not toggle)")
+                        false
+                    }
                 } catch (e: Exception) {
-                    android.util.Log.e("GOATLY", "Calendar insert failed: ${e.message}")
+                    Log.e("GOATLY_MT", "applyAndSyncCalendar — calendar insert failed on Dispatchers.IO: ${e.message}")
                     false
                 }
             }
@@ -288,6 +300,8 @@ class OfferDetailViewModel(
             val calendarSuccess = calendarJob.await()
 
             // Sprint 3: Multi-threading — Coroutine 3 on Dispatchers.Main (UI update)
+            // Only the main thread can update StateFlow observed by Compose
+            Log.d("GOATLY_MT", "applyAndSyncCalendar — updating UI on Dispatchers.Main — backend=$backendSuccess calendar=$calendarSuccess")
             withContext(Dispatchers.Main) {
                 if (backendSuccess) {
                     _state.value = _state.value.copy(
@@ -309,22 +323,27 @@ class OfferDetailViewModel(
     }
     // Sprint 3: Feature Calendar Sync — END applyAndSyncCalendar
 
-    // Sprint 3: BQ — "What is the average GPA of students who applied to this offer?"
-    // Fetches analytics data from GET /analytics/gpa-by-offer and filters by offerId
+    // Sprint 3: BQ12 — "What is the average GPA of students who applied to this offer?"
+    // Type 2: result is displayed directly in OfferDetailScreen as a COMPETENCIA card.
+    // Runs on Dispatchers.IO to avoid blocking the main thread during network call,
+    // then switches to Dispatchers.Main to update StateFlow safely.
     private fun loadGpaForOffer(offerId: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            Log.d("GOATLY_BQ", "loadGpaForOffer — fetching GPA data on Dispatchers.IO for offerId=$offerId")
             try {
                 val offerIdInt = offerId.toIntOrNull() ?: return@launch
                 val gpaData = RetrofitClient.api.getGpaByOffer()
                 val offerGpa = gpaData.find { it.offerId == offerIdInt }
+                Log.d("GOATLY_BQ", "loadGpaForOffer — result: avgGpa=${offerGpa?.averageGpa} totalApplicants=${offerGpa?.totalApplicants}")
                 withContext(Dispatchers.Main) {
+                    Log.d("GOATLY_BQ", "loadGpaForOffer — updating UI on Dispatchers.Main")
                     _state.value = _state.value.copy(
                         avgGpa = offerGpa?.averageGpa,
                         totalApplicants = offerGpa?.totalApplicants ?: 0
                     )
                 }
             } catch (e: Exception) {
-                android.util.Log.e("GOATLY_BQ", "GPA load failed: ${e.message}")
+                Log.e("GOATLY_BQ", "loadGpaForOffer — failed: ${e.message}")
             }
         }
     }

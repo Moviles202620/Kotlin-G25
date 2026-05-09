@@ -74,16 +74,24 @@ class AuthViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             _loginError.value = null
-            val result = authRepository.registerSuspend(name, email, password, major, role)
-            if (result != null) {
-                _user.value = result
-                // Isabella — Sprint 3: Eventual Connectivity — persist profile after register
-                TokenManager.saveUserProfile(result)
-                Log.d("GOATLY_EVC", "register — success, profile saved locally for ${result.email}")
-                onSuccess()
-            } else {
-                Log.w("GOATLY_EVC", "register — failed")
-                _loginError.value = "No se pudo crear la cuenta. Intenta de nuevo."
+            try {
+                val result = authRepository.registerSuspend(name, email, password, major, role)
+                if (result != null) {
+                    _user.value = result
+                    TokenManager.saveUserProfile(result)
+                    Log.d("GOATLY_EVC", "register — success, profile saved locally for ${result.email}")
+                    onSuccess()
+                } else {
+                    _loginError.value = "No se pudo crear la cuenta. Intenta de nuevo."
+                }
+            } catch (e: Exception) {
+                // Isabella — Sprint 4: EVC — registro sin red
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketTimeoutException) {
+                    Log.e("GOATLY_EVC", "register — no network: ${e.message}")
+                    _loginError.value = "Para crear una cuenta, por favor conéctese a internet."
+                } else {
+                    _loginError.value = "No se pudo crear la cuenta. Intenta de nuevo."
+                }
             }
             _isLoading.value = false
         }

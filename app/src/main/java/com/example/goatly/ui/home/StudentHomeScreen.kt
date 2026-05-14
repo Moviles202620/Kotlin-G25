@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Tune
@@ -40,6 +41,7 @@ fun StudentHomeScreen(
     val selectedCategory by homeViewModel.selectedCategory.collectAsState()
     val categories by homeViewModel.categories.collectAsState()
     val distanceFilter by homeViewModel.distanceFilter.collectAsState()
+    val error by homeViewModel.error.collectAsState()
     val context = LocalContext.current
 
     var showFilterSheet by remember { mutableStateOf(false) }
@@ -89,6 +91,27 @@ fun StudentHomeScreen(
             modifier = Modifier.padding(padding).fillMaxSize(),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
+
+            // Isabella — Sprint 4: EVC — banner de error cuando no hay red
+            error?.let { errorMsg ->
+                item {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFFFF3CD)
+                    ) {
+                        Text(
+                            text = errorMsg,
+                            modifier = Modifier.padding(12.dp),
+                            fontSize = 13.sp,
+                            color = Color(0xFF856404)
+                        )
+                    }
+                }
+            }
+
             // Filtros de categoría
             item {
                 LazyRow(
@@ -303,18 +326,49 @@ fun StudentHomeScreen(
 @Composable
 fun OfferCard(offer: HomeViewModel.OfferUiItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
-        modifier = modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)).clickable(onClick = onClick),
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                // Isabella — Sprint 4: borde verde si ya aplicó
+                width = if (offer.hasApplied) 2.dp else 1.dp,
+                color = if (offer.hasApplied) Color(0xFF1E6B3C) else AppColors.Border,
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         color = AppColors.Surface
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.background(AppColors.PrimaryYellow.copy(alpha = 0.15f), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier = Modifier
+                        .background(AppColors.PrimaryYellow.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(offer.category, fontSize = 12.sp, fontWeight = FontWeight.W700, color = Color(0xFF9A5B00))
                 }
                 Spacer(Modifier.weight(1f))
+
+                // Isabella — Sprint 4: badge "Ya aplicaste"
+                if (offer.hasApplied) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .background(Color(0xFFE8F5EC), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = Color(0xFF1E6B3C)
+                        )
+                        Text("Ya aplicaste", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFF1E6B3C))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(14.dp), tint = AppColors.GreyText)
                     Spacer(Modifier.width(2.dp))

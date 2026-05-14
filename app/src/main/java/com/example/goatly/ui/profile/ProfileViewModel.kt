@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
+import java.io.IOException
 
 class ProfileViewModel : ViewModel() {
 
@@ -50,13 +51,11 @@ class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Literal 4: withContext(Dispatchers.IO) para no bloquear el main thread
                 val result = withContext(Dispatchers.IO) {
                     api.getMe("Bearer $token")
                 }
                 _user.value = result
                 _isOffline.value = false
-                // Literal 5: guardar en DataStore para acceso offline
                 withContext(Dispatchers.IO) {
                     userPrefs.saveUserPreferences(
                         name = result.name,
@@ -66,18 +65,21 @@ class ProfileViewModel : ViewModel() {
                         isDarkMode = result.isDarkMode
                     )
                 }
-            } catch (_: Exception) {
-                // Literal 6: fallback a DataStore cuando no hay red
+            } catch (e: IOException) {
                 val hasLocal = withContext(Dispatchers.IO) { userPrefs.hasData() }
-                if (hasLocal) {
-                    _isOffline.value = true
-                    // Mantener el valor actual si ya fue cargado (seedFromAuth o carga previa)
-                    if (_user.value == null) {
-                        _error.value = "No se pudo cargar el perfil"
-                    }
-                } else {
-                    _error.value = "No se pudo cargar el perfil"
+                _isOffline.value = true
+                if (!hasLocal && _user.value == null) {
+                    _error.value = "Sin conexión — no hay datos disponibles"
                 }
+            } catch (e: HttpException) {
+                _isOffline.value = false
+                _error.value = when (e.code()) {
+                    401 -> "Sesión expirada — inicia sesión nuevamente"
+                    else -> "Error al cargar el perfil"
+                }
+            } catch (_: Exception) {
+                _isOffline.value = false
+                _error.value = "Error al cargar el perfil"
             }
             _isLoading.value = false
         }
@@ -90,7 +92,6 @@ class ProfileViewModel : ViewModel() {
             _error.value = null
             try {
                 val currentDarkMode = _user.value?.isDarkMode ?: false
-                // Literal 4: withContext(Dispatchers.IO)
                 val result = withContext(Dispatchers.IO) {
                     api.updateProfile(
                         "Bearer $token",
@@ -98,7 +99,7 @@ class ProfileViewModel : ViewModel() {
                     )
                 }
                 _user.value = result
-                // Literal 5: actualizar DataStore con nuevo perfil
+                _isOffline.value = false
                 withContext(Dispatchers.IO) {
                     userPrefs.saveUserPreferences(
                         name = result.name,
@@ -109,8 +110,19 @@ class ProfileViewModel : ViewModel() {
                     )
                 }
                 onSuccess()
+            } catch (e: IOException) {
+                _isOffline.value = true
+                _error.value = "Sin conexión — cambios no guardados"
+            } catch (e: HttpException) {
+                _isOffline.value = false
+                _error.value = when (e.code()) {
+                    400 -> "Datos inválidos — verifica los campos"
+                    401 -> "Sesión expirada — inicia sesión nuevamente"
+                    else -> "Error al actualizar el perfil"
+                }
             } catch (_: Exception) {
-                _error.value = "No se pudo actualizar el perfil"
+                _isOffline.value = false
+                _error.value = "Error al actualizar el perfil"
             }
             _isLoading.value = false
         }
@@ -122,17 +134,26 @@ class ProfileViewModel : ViewModel() {
             _isLoading.value = true
             _error.value = null
             try {
-                // Literal 4: withContext(Dispatchers.IO)
                 withContext(Dispatchers.IO) {
                     api.changePassword(
                         "Bearer $token",
                         ChangePasswordRequest(currentPw, newPw, confirmPw)
                     )
                 }
+                _isOffline.value = false
                 onSuccess()
+            } catch (e: IOException) {
+                _isOffline.value = true
+                _error.value = "Sin conexión — cambio de contraseña no guardado"
             } catch (e: HttpException) {
-                _error.value = if (e.code() == 400) "Contraseña actual incorrecta" else "Error al cambiar la contraseña"
+                _isOffline.value = false
+                _error.value = when (e.code()) {
+                    400 -> "Contraseña actual incorrecta"
+                    401 -> "Sesión expirada — inicia sesión nuevamente"
+                    else -> "Error al cambiar la contraseña"
+                }
             } catch (_: Exception) {
+                _isOffline.value = false
                 _error.value = "Error al cambiar la contraseña"
             }
             _isLoading.value = false

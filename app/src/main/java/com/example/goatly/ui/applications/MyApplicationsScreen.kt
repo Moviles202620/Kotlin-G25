@@ -45,6 +45,7 @@ fun MyApplicationsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val topOffers by appsViewModel.topOffers.collectAsState()
     val avgPerSemester by appsViewModel.avgPerSemester.collectAsState()
+    val userSemester by appsViewModel.userSemester.collectAsState()
 
     // Carga inicial — load() ya incluye top offers en paralelo
     LaunchedEffect(Unit) {
@@ -119,7 +120,10 @@ fun MyApplicationsScreen(
 
                     // BQ Sprint 3
                     if (avgPerSemester.isNotEmpty()) {
-                        item { AvgPerSemesterCard(avgPerSemester) }
+                        val userItem = avgPerSemester.find { it.semester == userSemester }
+                        if (userItem != null) {
+                            item { UserSemesterCard(item = userItem) }
+                        }
                     }
 
                     // BQ3: rating breakdown (solo si hay aplicaciones completadas)
@@ -592,6 +596,75 @@ private fun AvgPerSemesterCard(items: List<ApplicationsViewModel.AvgPerSemesterI
                 }
                 if (item != items.last()) {
                     Divider(color = AppColors.Border, thickness = 0.5.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserSemesterCard(item: ApplicationsViewModel.AvgPerSemesterItem) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp), color = AppColors.Surface
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                "TU SEMESTRE",
+                fontSize = 12.sp,
+                letterSpacing = 1.4.sp,
+                color = Color(0xFF9AA4B2),
+                fontWeight = FontWeight.W800
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Promedio de aplicaciones — Semestre ${item.semester}",
+                fontSize = 12.sp,
+                color = AppColors.GreyText
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(AppColors.PrimaryYellow.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "${item.semester}°",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.W900,
+                        color = Color(0xFF9A5B00)
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "${item.totalStudents} estudiantes en tu semestre",
+                        fontSize = 13.sp,
+                        color = AppColors.GreyText
+                    )
+                    Text(
+                        "${item.totalApplications} aplicaciones en total",
+                        fontSize = 13.sp,
+                        color = AppColors.GreyText
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        String.format("%.1f", item.avgApplications),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.W900,
+                        color = AppColors.PrimaryYellow
+                    )
+                    Text(
+                        "apps/est.",
+                        fontSize = 11.sp,
+                        color = AppColors.GreyText
+                    )
                 }
             }
         }

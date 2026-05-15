@@ -318,7 +318,6 @@ class OfferDetailViewModel(
                         isAddedToCalendar = addToCalendar && calendarSuccess,
                         isCalendarPending = addToCalendar && !calendarSuccess
                     )
-                    onSuccess()
 
                     onSuccess()
                 } else {

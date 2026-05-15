@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.goatly.data.model.OfferModel
 import com.example.goatly.data.network.LocationManager
 import com.example.goatly.data.repository.ApiApplicationRepository
 import com.example.goatly.data.repository.ApiOfferRepository
@@ -34,9 +33,8 @@ class HomeViewModel(
         val longitude: Double? = null,
         val distanceMeters: Double? = null,
         val distanceText: String? = null,
-        // Isabella — Sprint 4: fecha para filtrar ofertas pasadas
         val dateTime: Date = Date(),
-        // Isabella — Sprint 4: relación visual con aplicaciones
+        // Isabella — Sprint 3: relación visual con aplicaciones
         val hasApplied: Boolean = false
     )
 
@@ -68,6 +66,10 @@ class HomeViewModel(
     private val _distanceFilter = MutableStateFlow(DistanceFilter())
     val distanceFilter: StateFlow<DistanceFilter> = _distanceFilter.asStateFlow()
 
+    // Isabella — Sprint 3: toggle para filtrar ofertas pasadas
+    private val _showOnlyUpcoming = MutableStateFlow(false)
+    val showOnlyUpcoming: StateFlow<Boolean> = _showOnlyUpcoming.asStateFlow()
+
     private val _userLat = MutableStateFlow<Double?>(null)
     private val _userLng = MutableStateFlow<Double?>(null)
 
@@ -78,13 +80,11 @@ class HomeViewModel(
             _isLoading.value = true
             _error.value = null
             val fmt = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
-            val now = Date()
 
             try {
                 val all = offerRepository.getAllSuspend()
 
-                // Isabella — Sprint 4: relación visual con aplicaciones
-                // Fetch applied offer IDs to show badge in OfferCard
+                // Isabella — Sprint 3: relación visual con aplicaciones
                 val appliedOfferIds = try {
                     applicationRepository.getAllSuspend().map { it.offerId }.toSet()
                 } catch (e: Exception) {
@@ -143,6 +143,13 @@ class HomeViewModel(
         applyFilters()
     }
 
+    // Isabella — Sprint 3: toggle solo ofertas próximas
+    fun toggleShowOnlyUpcoming() {
+        _showOnlyUpcoming.value = !_showOnlyUpcoming.value
+        Log.d("GOATLY_HOME", "Show only upcoming: ${_showOnlyUpcoming.value}")
+        applyFilters()
+    }
+
     fun loadUserLocationAndFilter(context: Context) {
         LocationManager.getCurrentLocation(context) { lat, lng ->
             _userLat.value = lat
@@ -158,9 +165,11 @@ class HomeViewModel(
 
         var result = _allOffers.value
 
-        // Isabella — Sprint 4: filtrar ofertas cuya fecha ya pasó
-        result = result.filter { it.dateTime.after(now) }
-        Log.d("GOATLY_HOME", "After date filter: ${result.size} upcoming offers")
+        // Isabella — Sprint 3: filtrar ofertas pasadas si el toggle está activo
+        if (_showOnlyUpcoming.value) {
+            result = result.filter { it.dateTime.after(now) }
+            Log.d("GOATLY_HOME", "After date filter: ${result.size} upcoming offers")
+        }
 
         if (cat != null) result = result.filter { it.category == cat }
         if (!filter.showRemote) result = result.filter { it.isOnSite }

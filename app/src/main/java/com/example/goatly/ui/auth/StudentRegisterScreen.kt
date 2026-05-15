@@ -42,6 +42,17 @@ fun StudentRegisterScreen(
 
     val isLoading by viewModel.isLoading.collectAsState()
 
+    // Isabella — Sprint 3: EVC — consumir loginError para mostrar mensaje sin internet
+    val loginError by viewModel.loginError.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(loginError) {
+        if (loginError != null) {
+            snackbarHostState.showSnackbar(loginError!!)
+            viewModel.clearLoginError()
+        }
+    }
+
     val emojiRegex = Regex("[\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u27BF]")
     val nameRegex = Regex("^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ ]+$")
 
@@ -58,8 +69,6 @@ fun StudentRegisterScreen(
     }
 
     // Sprint 3: Feature Password Strength Indicator — START
-    // Real-time password rules checklist. Each rule is a label + a lambda that checks the password.
-    // Displayed as a green/red checklist below the password field.
     val passwordRules = listOf(
         "Al menos 8 caracteres"                    to { p: String -> p.length >= 8 },
         "Una letra mayúscula"                      to { p: String -> p.any { it.isUpperCase() } },
@@ -71,7 +80,6 @@ fun StudentRegisterScreen(
         "Sin espacios"                             to { p: String -> !p.contains(' ') },
         "Sin emojis"                               to { p: String -> !emojiRegex.containsMatchIn(p) }
     )
-    // passwordStrong is true only when ALL rules pass — used to enable the register button
     val passwordStrong = passwordRules.all { (_, check) -> check(password) }
     // Sprint 3: Feature Password Strength Indicator — END
 
@@ -126,6 +134,8 @@ fun StudentRegisterScreen(
     var majorExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
+        // Isabella — Sprint 3: EVC — snackbar para mensajes de error de red
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {},
@@ -297,8 +307,6 @@ fun StudentRegisterScreen(
                         isPassword = true
                     )
 
-                    // Sprint 3: Feature Password Strength Indicator — Checklist
-                    // Shows only when the user starts typing. Each rule turns green when met.
                     if (password.isNotEmpty()) {
                         Spacer(Modifier.height(10.dp))
                         Surface(
@@ -344,7 +352,6 @@ fun StudentRegisterScreen(
                     Spacer(Modifier.height(22.dp))
 
                     // Sprint 3: Feature Password Strength Indicator — Button validation
-                    // Register button only fires when ALL password rules pass (passwordStrong = true)
                     Button(
                         onClick = {
                             nameError = when {

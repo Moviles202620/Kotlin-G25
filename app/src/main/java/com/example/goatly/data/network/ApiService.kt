@@ -2,11 +2,15 @@ package com.example.goatly.data.network
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import okhttp3.MultipartBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Query
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
@@ -43,7 +47,9 @@ data class UserResponse(
     val department: String,
     val role: String,
     val language: String,
-    @field:Json(name = "is_dark_mode") val isDarkMode: Boolean
+    @field:Json(name = "is_dark_mode") val isDarkMode: Boolean,
+    // Sprint 4: Caching — Coil image cache — carnet URL from Supabase Storage
+    @field:Json(name = "profile_picture") val profilePicture: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -180,7 +186,6 @@ data class AvgPerSemesterDto(
     @field:Json(name = "total_applications") val totalApplications: Int
 )
 
-
 // Sprint 3: BQ — END
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -237,4 +242,19 @@ interface ApiService {
 
     @GET("applications/bq/avg-per-semester")
     suspend fun getAvgApplicationsPerSemester(): List<AvgPerSemesterDto>
+
+    // Sprint 4: Caching — Coil image cache — upload carnet to Supabase Storage
+    @Multipart
+    @POST("users/me/carnet")
+    suspend fun uploadCarnet(
+        @Header("Authorization") token: String,
+        @Part file: MultipartBody.Part
+    ): UserResponse
+
+    // Sprint 4: Caching — delete carnet URL from profile
+    @DELETE("users/me/carnet")
+    suspend fun deleteCarnet(
+        @Header("Authorization") token: String
+    ): UserResponse
+    // Sprint 4: Caching — END
 }

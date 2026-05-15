@@ -1,23 +1,33 @@
 package com.example.goatly.ui.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.goatly.ui.applications.ApplicationsViewModel
 import com.example.goatly.ui.applications.ApplicationsViewModel.UiState
 import com.example.goatly.ui.theme.AppColors
@@ -30,15 +40,28 @@ fun StudentProfileScreen(
     onSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
+    val context = LocalContext.current
+
     LaunchedEffect(Unit) {
         profileViewModel.loadProfile()
         appsViewModel.refresh()
     }
+
     val appsUiState by appsViewModel.uiState.collectAsState()
     val user by profileViewModel.user.collectAsState()
     val isOffline by profileViewModel.isOffline.collectAsState()
+    val isLoading by profileViewModel.isLoading.collectAsState()
+    val carnetUploadSuccess by profileViewModel.carnetUploadSuccess.collectAsState()
+    val carnetDeleteSuccess by profileViewModel.carnetDeleteSuccess.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val error by profileViewModel.error.collectAsState()
+
+    // Sprint 4: Caching — Coil — image picker launcher
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { profileViewModel.uploadCarnet(context, it) }
+    }
 
     LaunchedEffect(error) {
         if (error != null) {
@@ -47,11 +70,27 @@ fun StudentProfileScreen(
         }
     }
 
+    LaunchedEffect(carnetUploadSuccess) {
+        if (carnetUploadSuccess) {
+            snackbarHostState.showSnackbar("Carnet subido correctamente")
+            profileViewModel.clearCarnetSuccess()
+        }
+    }
+
+    LaunchedEffect(carnetDeleteSuccess) {
+        if (carnetDeleteSuccess) {
+            snackbarHostState.showSnackbar("Carnet eliminado")
+            profileViewModel.clearCarnetDeleteSuccess()
+        }
+    }
+
     val userName = user?.name?.takeIf { it.isNotBlank() }
     val userEmail = user?.email?.takeIf { it.isNotBlank() }
     val userMajor = user?.department?.takeIf { it.isNotBlank() }
     val userLanguage = user?.language
     val initials = userName?.split(" ")?.take(2)?.joinToString("") { it.first().uppercase() } ?: "EU"
+    val carnetUrl = user?.profilePicture
+
     val stats = when (val s = appsUiState) {
         is UiState.Success -> s.response.stats
         is UiState.SuccessOffline -> s.stats
@@ -83,14 +122,132 @@ fun StudentProfileScreen(
             }
             item { Spacer(Modifier.height(18.dp)) }
 
-            // Avatar
+            // ============================================================
+            // Sprint 4: Caching — Coil image cache — Avatar / Carnet
+            // ============================================================
             item {
+                var showMenu by remember { mutableStateOf(false) }
+                var showFullImage by remember { mutableStateOf(false) }
+
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Box(modifier = Modifier.size(78.dp).background(AppColors.PrimaryYellow, CircleShape), contentAlignment = Alignment.Center) {
-                        Text(initials, fontSize = 26.sp, fontWeight = FontWeight.W900, color = Color.White)
+                    Box(
+                        modifier = Modifier
+                            .size(90.dp)
+                            .clip(CircleShape)
+                            .background(AppColors.PrimaryYellow)
+                            .clickable { showMenu = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (carnetUrl != null) {
+                            // Coil loads and caches the image automatically in memory and disk
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(carnetUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Carnet universitario",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize().clip(CircleShape)
+                            )
+                        } else {
+                            Text(initials, fontSize = 26.sp, fontWeight = FontWeight.W900, color = Color.White)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(26.dp)
+                                .background(AppColors.DarkText, CircleShape)
+                                .border(2.dp, AppColors.Surface, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.AddAPhoto,
+                                contentDescription = "Opciones de foto",
+                                tint = AppColors.PrimaryYellow,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(90.dp),
+                            color = AppColors.PrimaryYellow,
+                            strokeWidth = 3.dp
+                        )
+                    }
+
+                    // Dropdown menu con opciones
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        if (carnetUrl != null) {
+                            DropdownMenuItem(
+                                text = { Text("Ver imagen") },
+                                onClick = {
+                                    showMenu = false
+                                    showFullImage = true
+                                }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text(if (carnetUrl != null) "Cambiar imagen" else "Subir carnet") },
+                            onClick = {
+                                showMenu = false
+                                imagePicker.launch("image/*")
+                            }
+                        )
+                        if (carnetUrl != null) {
+                            DropdownMenuItem(
+                                text = { Text("Eliminar imagen", color = Color.Red) },
+                                onClick = {
+                                    showMenu = false
+                                    profileViewModel.deleteCarnet()
+                                }
+                            )
+                        }
                     }
                 }
+
+                // Full screen image dialog
+                if (showFullImage && carnetUrl != null) {
+                    AlertDialog(
+                        onDismissRequest = { showFullImage = false },
+                        confirmButton = {
+                            TextButton(onClick = { showFullImage = false }) {
+                                Text("Cerrar")
+                            }
+                        },
+                        text = {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(carnetUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Carnet completo",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                            )
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (carnetUrl != null) "Toca para ver opciones" else "Toca para subir tu carnet",
+                    modifier = Modifier.fillMaxWidth(),
+                    fontSize = 12.sp,
+                    color = AppColors.GreyText,
+                    textAlign = TextAlign.Center
+                )
             }
+            // Sprint 4: Caching — END Avatar/Carnet
+
             item { Spacer(Modifier.height(12.dp)) }
             item {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -103,22 +260,16 @@ fun StudentProfileScreen(
             }
             item { Spacer(Modifier.height(14.dp)) }
 
-            // Botones
             item {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ProfileSoftButton("Editar perfil", filled = true, modifier = Modifier.weight(1f)) {
-                        onEditProfile()
-                    }
-                    ProfileSoftButton("Configuración", filled = false, modifier = Modifier.weight(1f)) {
-                        onSettings()
-                    }
+                    ProfileSoftButton("Editar perfil", filled = true, modifier = Modifier.weight(1f)) { onEditProfile() }
+                    ProfileSoftButton("Configuración", filled = false, modifier = Modifier.weight(1f)) { onSettings() }
                 }
             }
 
             item { Spacer(Modifier.height(14.dp)) }
             item { HorizontalDivider(color = AppColors.Border) }
 
-            // Stats
             item {
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ProfileStatCard("ACEPTADAS", "$accepted", AppColors.PrimaryYellow, Modifier.weight(1f))
@@ -127,7 +278,6 @@ fun StudentProfileScreen(
                 }
             }
 
-            // Info card
             item {
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).border(1.dp, AppColors.Border, RoundedCornerShape(14.dp)),
@@ -149,7 +299,6 @@ fun StudentProfileScreen(
 
             item { Spacer(Modifier.height(24.dp)) }
 
-            // Cerrar sesión
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),

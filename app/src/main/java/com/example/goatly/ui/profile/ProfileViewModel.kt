@@ -21,6 +21,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
+import java.io.IOException
 
 class ProfileViewModel : ViewModel() {
 
@@ -77,16 +78,22 @@ class ProfileViewModel : ViewModel() {
                         isDarkMode = result.isDarkMode
                     )
                 }
-            } catch (_: Exception) {
+            } catch (e: IOException) {
+                // developer: separar IOException para EVC
                 val hasLocal = withContext(Dispatchers.IO) { userPrefs.hasData() }
-                if (hasLocal) {
-                    _isOffline.value = true
-                    if (_user.value == null) {
-                        _error.value = "No se pudo cargar el perfil"
-                    }
-                } else {
-                    _error.value = "No se pudo cargar el perfil"
+                _isOffline.value = true
+                if (!hasLocal && _user.value == null) {
+                    _error.value = "Sin conexión — no hay datos disponibles"
                 }
+            } catch (e: HttpException) {
+                _isOffline.value = false
+                _error.value = when (e.code()) {
+                    401 -> "Sesión expirada — inicia sesión nuevamente"
+                    else -> "Error al cargar el perfil"
+                }
+            } catch (_: Exception) {
+                _isOffline.value = false
+                _error.value = "Error al cargar el perfil"
             }
             _isLoading.value = false
         }
@@ -106,6 +113,7 @@ class ProfileViewModel : ViewModel() {
                     )
                 }
                 _user.value = result
+                _isOffline.value = false
                 withContext(Dispatchers.IO) {
                     userPrefs.saveUserPreferences(
                         name = result.name,
@@ -116,8 +124,19 @@ class ProfileViewModel : ViewModel() {
                     )
                 }
                 onSuccess()
+            } catch (e: IOException) {
+                _isOffline.value = true
+                _error.value = "Sin conexión — cambios no guardados"
+            } catch (e: HttpException) {
+                _isOffline.value = false
+                _error.value = when (e.code()) {
+                    400 -> "Datos inválidos — verifica los campos"
+                    401 -> "Sesión expirada — inicia sesión nuevamente"
+                    else -> "Error al actualizar el perfil"
+                }
             } catch (_: Exception) {
-                _error.value = "No se pudo actualizar el perfil"
+                _isOffline.value = false
+                _error.value = "Error al actualizar el perfil"
             }
             _isLoading.value = false
         }
@@ -135,10 +154,20 @@ class ProfileViewModel : ViewModel() {
                         ChangePasswordRequest(currentPw, newPw, confirmPw)
                     )
                 }
+                _isOffline.value = false
                 onSuccess()
+            } catch (e: IOException) {
+                _isOffline.value = true
+                _error.value = "Sin conexión — cambio de contraseña no guardado"
             } catch (e: HttpException) {
-                _error.value = if (e.code() == 400) "Contraseña actual incorrecta" else "Error al cambiar la contraseña"
+                _isOffline.value = false
+                _error.value = when (e.code()) {
+                    400 -> "Contraseña actual incorrecta"
+                    401 -> "Sesión expirada — inicia sesión nuevamente"
+                    else -> "Error al cambiar la contraseña"
+                }
             } catch (_: Exception) {
+                _isOffline.value = false
                 _error.value = "Error al cambiar la contraseña"
             }
             _isLoading.value = false
@@ -179,7 +208,7 @@ class ProfileViewModel : ViewModel() {
 
             } catch (e: Exception) {
                 Log.e("GOATLY_COIL", "uploadCarnet — failed: ${e.message}")
-                if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is IOException) {
                     _error.value = "Sin conexión. Conéctate a internet para subir tu carnet."
                 } else {
                     _error.value = "No se pudo subir el carnet. Intenta de nuevo."
@@ -205,7 +234,7 @@ class ProfileViewModel : ViewModel() {
                 Log.d("GOATLY_COIL", "deleteCarnet — success, profile_picture cleared")
             } catch (e: Exception) {
                 Log.e("GOATLY_COIL", "deleteCarnet — failed: ${e.message}")
-                if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is IOException) {
                     _error.value = "Sin conexión. Conéctate a internet para eliminar tu carnet."
                 } else {
                     _error.value = "No se pudo eliminar el carnet. Intenta de nuevo."

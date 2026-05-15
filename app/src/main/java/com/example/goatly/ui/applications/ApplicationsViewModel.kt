@@ -6,7 +6,6 @@ import com.example.goatly.data.LocalProvider
 import com.example.goatly.data.local.db.toDto
 import com.example.goatly.data.local.db.toEntity
 import com.example.goatly.data.network.ApplicationStatsDto
-import com.example.goatly.data.network.ApplyRequest
 import com.example.goatly.data.network.MyApplicationItemDto
 import com.example.goatly.data.network.MyApplicationsResponseDto
 import com.example.goatly.data.network.RetrofitClient
@@ -100,8 +99,10 @@ class ApplicationsViewModel : ViewModel() {
     private val _avgPerSemester = MutableStateFlow<List<AvgPerSemesterItem>>(emptyList())
     val avgPerSemester: StateFlow<List<AvgPerSemesterItem>> = _avgPerSemester.asStateFlow()
 
+    // Cache de todas las aplicaciones para filtrado offline sin reset
+    private val _allApplicationsCache = MutableStateFlow<List<MyApplicationItemDto>>(emptyList())
+
     init {
-        // Literal 4: Flow + debounce para búsqueda reactiva
         viewModelScope.launch {
             _searchQuery
                 .debounce(500)
@@ -139,29 +140,64 @@ class ApplicationsViewModel : ViewModel() {
 
     fun load(statusFilter: String? = null) {
         _activeFilter.value = statusFilter
+
+        // FIX bug reset: si ya hay datos cargados y solo cambia el filtro,
+        // aplicar el filtro localmente sin mostrar Loading
+        val currentApps = _allApplicationsCache.value
+        if (currentApps.isNotEmpty()) {
+            val filtered = if (statusFilter != null) {
+                currentApps.filter { it.status == statusFilter }
+            } else {
+                currentApps
+            }
+            val stats = ApplicationStatsDto(
+                total = filtered.size,
+                pending = filtered.count { it.status == "pending" },
+                accepted = filtered.count { it.status == "accepted" },
+                rejected = filtered.count { it.status == "rejected" }
+            )
+            if (_isOffline.value) {
+                _uiState.value = UiState.SuccessOffline(filtered, stats)
+            } else {
+                val currentResponse = (_uiState.value as? UiState.Success)?.response
+                if (currentResponse != null) {
+                    _uiState.value = UiState.Success(
+                        currentResponse.copy(
+                            applications = filtered,
+                            stats = stats
+                        )
+                    )
+                    return
+                }
+            }
+            if (_isOffline.value) return
+        }
+
         viewModelScope.launch {
-            _uiState.value = UiState.Loading
+            // Solo mostrar Loading en la primera carga
+            if (_allApplicationsCache.value.isEmpty()) {
+                _uiState.value = UiState.Loading
+            }
+
             val token = TokenManager.getAccessToken() ?: run {
                 _navigateToLogin.tryEmit(Unit)
                 return@launch
             }
             try {
-                // Literal 4: async/await paralelo — apps, top offers y BQ Sprint 3 en simultáneo
                 val (response, topOffersList, avgSemesterList) = coroutineScope {
                     val appsDeferred = async(Dispatchers.IO) {
                         android.util.Log.d("GOATLY_ASYNC", "apps START: ${System.currentTimeMillis()}")
                         retryWithBackoff {
+                            // Siempre pedir todas las apps al backend, filtrar localmente
                             RetrofitClient.api.getMyApplications(
                                 token = "Bearer $token",
-                                status = statusFilter,
+                                status = null,
                                 detailed = true
                             )
                         }.also { android.util.Log.d("GOATLY_ASYNC", "apps END: ${System.currentTimeMillis()}") }
                     }
                     val topOffersDeferred = async(Dispatchers.IO) {
-                        android.util.Log.d("GOATLY_ASYNC", "topOffers START: ${System.currentTimeMillis()}")
                         RetrofitClient.api.getTopOffers()
-                            .also { android.util.Log.d("GOATLY_ASYNC", "topOffers END: ${System.currentTimeMillis()}") }
                     }
                     val avgSemesterDeferred = async(Dispatchers.IO) {
                         try {
@@ -174,14 +210,16 @@ class ApplicationsViewModel : ViewModel() {
                     Triple(appsDeferred.await(), topOffersDeferred.await(), avgSemesterDeferred.await())
                 }
 
-                // Literal 5+7: guardar en Room y LRU cache
+                // Guardar en Room y LRU cache
                 withContext(Dispatchers.IO) {
                     dao.insertAll(response.applications.map { it.toEntity() })
                 }
                 cache.putAll(response.applications)
 
+                // Guardar todas las apps en cache local para filtrado sin reset
+                _allApplicationsCache.value = response.applications
+
                 _isOffline.value = false
-                _uiState.value = UiState.Success(response)
                 _topOffers.value = topOffersList.map { TopOfferItem(it.title, it.total) }
                 _avgPerSemester.value = avgSemesterList.map {
                     AvgPerSemesterItem(
@@ -192,7 +230,22 @@ class ApplicationsViewModel : ViewModel() {
                     )
                 }
 
-                // BQ3: calcular breakdown de ratings desde Room
+                // Aplicar filtro localmente sobre los datos frescos
+                val appsToShow = if (statusFilter != null) {
+                    response.applications.filter { it.status == statusFilter }
+                } else {
+                    response.applications
+                }
+                val statsToShow = ApplicationStatsDto(
+                    total = appsToShow.size,
+                    pending = appsToShow.count { it.status == "pending" },
+                    accepted = appsToShow.count { it.status == "accepted" },
+                    rejected = appsToShow.count { it.status == "rejected" }
+                )
+                _uiState.value = UiState.Success(
+                    response.copy(applications = appsToShow, stats = statsToShow)
+                )
+
                 loadRatingStats()
 
             } catch (e: HttpException) {
@@ -202,7 +255,6 @@ class ApplicationsViewModel : ViewModel() {
                     fallbackToLocal(statusFilter)
                 }
             } catch (e: Exception) {
-                // Literal 6: fallback a Room cuando no hay red
                 fallbackToLocal(statusFilter)
             }
         }
@@ -222,20 +274,40 @@ class ApplicationsViewModel : ViewModel() {
     }
 
     private suspend fun fallbackToLocal(statusFilter: String?) {
-        val cached = withContext(Dispatchers.IO) {
-            if (statusFilter != null) dao.getByStatus(statusFilter)
-            else dao.getAll()
-        }
-        if (cached.isNotEmpty()) {
-            val apps = cached.map { it.toDto() }
+        // FIX offline filter: primero intentar filtrar sobre cache en memoria
+        val memoryApps = _allApplicationsCache.value
+        if (memoryApps.isNotEmpty()) {
+            val filtered = if (statusFilter != null) {
+                memoryApps.filter { it.status == statusFilter }
+            } else memoryApps
             val stats = ApplicationStatsDto(
-                total = apps.size,
-                pending = apps.count { it.status == "pending" },
-                accepted = apps.count { it.status == "accepted" },
-                rejected = apps.count { it.status == "rejected" }
+                total = filtered.size,
+                pending = filtered.count { it.status == "pending" },
+                accepted = filtered.count { it.status == "accepted" },
+                rejected = filtered.count { it.status == "rejected" }
             )
             _isOffline.value = true
-            _uiState.value = UiState.SuccessOffline(apps, stats)
+            _uiState.value = UiState.SuccessOffline(filtered, stats)
+            loadRatingStats()
+            return
+        }
+
+        // Si no hay cache en memoria, buscar en Room
+        val cached = withContext(Dispatchers.IO) { dao.getAll() }
+        if (cached.isNotEmpty()) {
+            val allApps = cached.map { it.toDto() }
+            _allApplicationsCache.value = allApps
+            val filtered = if (statusFilter != null) {
+                allApps.filter { it.status == statusFilter }
+            } else allApps
+            val stats = ApplicationStatsDto(
+                total = filtered.size,
+                pending = filtered.count { it.status == "pending" },
+                accepted = filtered.count { it.status == "accepted" },
+                rejected = filtered.count { it.status == "rejected" }
+            )
+            _isOffline.value = true
+            _uiState.value = UiState.SuccessOffline(filtered, stats)
             loadRatingStats()
         } else {
             _isOffline.value = true
@@ -243,7 +315,6 @@ class ApplicationsViewModel : ViewModel() {
         }
     }
 
-    // Literal 6: retry con backoff exponencial (1s, 2s, 4s)
     private suspend fun <T> retryWithBackoff(
         times: Int = 3,
         initialDelayMs: Long = 1000L,

@@ -358,14 +358,8 @@ fun ApplyApplicationDialog(
                     Text("Nombre del postulante", fontSize = 13.sp, fontWeight = FontWeight.W700)
                     OutlinedTextField(
                         value = applicantName,
-                        onValueChange = {
-                            applicantName = it
-                            nameError = when {
-                                it.isBlank() -> "Campo requerido"
-                                emojiRegex.containsMatchIn(it) -> "No se permiten emojis"
-                                else -> null
-                            }
-                        },
+                        onValueChange = {},
+                        readOnly = true,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(8.dp),
@@ -379,7 +373,8 @@ fun ApplyApplicationDialog(
                     Text("Carrera", fontSize = 13.sp, fontWeight = FontWeight.W700)
                     OutlinedTextField(
                         value = career,
-                        onValueChange = { career = it },
+                        onValueChange = {},
+                        readOnly = true,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(8.dp),

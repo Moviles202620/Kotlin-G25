@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.text.SimpleDateFormat
 import java.util.Locale
+import com.example.goatly.data.network.AppliedOffersCache
 
 class OfferDetailViewModel(
     private val offerRepository: ApiOfferRepository = RepositoryProvider.offerRepository,
@@ -80,8 +81,10 @@ class OfferDetailViewModel(
             val alreadyApplied = try {
                 applicationRepository.getAllSuspend().any { it.offerId == offerId }
             } catch (_: Exception) {
-                false
+                // Si no hay internet, consultar cache local
+                AppliedOffersCache.hasApplied(context, offerId)
             }
+
 
             // Isabella — Sprint 3: Calendar Sync — load persisted calendar state
             val isSynced = CalendarSyncManager.isOfferSynced(context, offer.id)
@@ -307,6 +310,15 @@ class OfferDetailViewModel(
                         isAddedToCalendar = addToCalendar && calendarSuccess,
                         isCalendarPending = addToCalendar && !calendarSuccess
                     )
+
+                    // Guardar localmente para funcionar offline
+                    AppliedOffersCache.markAsApplied(context, offerId)
+                    _state.value = _state.value.copy(
+                        hasApplied = true,
+                        isAddedToCalendar = addToCalendar && calendarSuccess,
+                        isCalendarPending = addToCalendar && !calendarSuccess
+                    )
+
                     onSuccess()
                 } else {
                     // Isabella — Sprint 3: Eventual Connectivity — apply sin crash offline

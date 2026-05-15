@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.goatly.ui.applications.ApplicationsViewModel
 import com.example.goatly.ui.applications.MyApplicationsScreen
 import com.example.goatly.ui.home.StudentHomeScreen
@@ -28,15 +27,6 @@ fun StudentShell(
     onLogout: () -> Unit
 ) {
     var selectedIndex by remember { mutableIntStateOf(0) }
-
-    // Pasar el semestre del usuario al ApplicationsViewModel
-    val profileUser by profileViewModel.user.collectAsStateWithLifecycle()
-    LaunchedEffect(profileUser) {
-        val semester = profileUser?.semester ?: 0
-        if (semester > 0) {
-            appsViewModel.setUserSemester(semester)
-        }
-    }
 
     Scaffold(
         containerColor = AppColors.Background,

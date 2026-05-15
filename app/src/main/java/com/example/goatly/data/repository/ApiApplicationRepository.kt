@@ -1,8 +1,10 @@
 package com.example.goatly.data.repository
 
+import android.content.Context
 import com.example.goatly.data.model.ApplicationModel
 import com.example.goatly.data.model.ApplicationStatus
 import com.example.goatly.data.network.ApiService
+import com.example.goatly.data.network.AppliedOffersCache
 import com.example.goatly.data.network.ApplyRequest
 import com.example.goatly.data.network.TokenManager
 import java.util.Date
@@ -34,9 +36,7 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
                         "rejected" -> ApplicationStatus.REJECTED
                         else -> ApplicationStatus.PENDING
                     },
-                    // Sprint 3: BQ12 — map GPA from backend response
                     gpa = item.gpa
-                    // Sprint 3: BQ12 — END
                 )
             }
         } catch (_: Exception) {
@@ -52,7 +52,8 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
         semester: Int = 0,
         gpa: Float = 0f,
         availability: String = "flexible",
-        motivationLetter: String = ""
+        motivationLetter: String = "",
+        context: Context? = null
     ): Boolean {
         val token = TokenManager.getAccessToken() ?: return false
         return try {
@@ -69,6 +70,8 @@ class ApiApplicationRepository(private val api: ApiService) : ApplicationReposit
                     motivationLetter = motivationLetter
                 )
             )
+            // Guardar localmente que ya aplicó para funcionar offline
+            context?.let { AppliedOffersCache.markAsApplied(it, offerId.toString()) }
             true
         } catch (_: Exception) {
             false

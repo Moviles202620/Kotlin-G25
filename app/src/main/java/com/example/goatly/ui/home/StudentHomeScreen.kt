@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
@@ -28,8 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.goatly.ui.theme.AppColors
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +42,8 @@ fun StudentHomeScreen(
     val categories by homeViewModel.categories.collectAsState()
     val distanceFilter by homeViewModel.distanceFilter.collectAsState()
     val error by homeViewModel.error.collectAsState()
+    // Isabella — Sprint 3: toggle solo ofertas próximas
+    val showOnlyUpcoming by homeViewModel.showOnlyUpcoming.collectAsState()
     val context = LocalContext.current
 
     var showFilterSheet by remember { mutableStateOf(false) }
@@ -52,9 +54,7 @@ fun StudentHomeScreen(
     val locationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) {
-            homeViewModel.loadUserLocationAndFilter(context)
-        }
+        if (granted) homeViewModel.loadUserLocationAndFilter(context)
         showFilterSheet = true
     }
 
@@ -92,7 +92,7 @@ fun StudentHomeScreen(
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
 
-            // Isabella — Sprint 4: EVC — banner de error cuando no hay red
+            // Banner de error EVC
             error?.let { errorMsg ->
                 item {
                     Surface(
@@ -143,7 +143,7 @@ fun StudentHomeScreen(
                 }
             }
 
-            // Filtro por distancia
+            // Fila de filtros — distancia + toggle próximas
             item {
                 Row(
                     modifier = Modifier
@@ -153,6 +153,7 @@ fun StudentHomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Botón filtro distancia
                     IconButton(
                         onClick = {
                             tempShowRemote = distanceFilter.showRemote
@@ -175,16 +176,21 @@ fun StudentHomeScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Text(
-                        if (isFilterActive) "Filtro de distancia activo" else "Filtrar por distancia",
-                        fontSize = 14.sp,
-                        color = if (isFilterActive) AppColors.DarkText else AppColors.GreyText,
-                        fontWeight = if (isFilterActive) FontWeight.W700 else FontWeight.W400
+
+                    // Isabella — Sprint 3: Toggle solo próximas
+                    FilterChip(
+                        selected = showOnlyUpcoming,
+                        onClick = { homeViewModel.toggleShowOnlyUpcoming() },
+                        label = { Text("Solo próximas", fontWeight = FontWeight.W700, fontSize = 13.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AppColors.DarkText,
+                            selectedLabelColor = AppColors.PrimaryYellow
+                        )
                     )
                 }
             }
 
-            // Header
+            // Header conteo
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -329,7 +335,6 @@ fun OfferCard(offer: HomeViewModel.OfferUiItem, onClick: () -> Unit, modifier: M
         modifier = modifier
             .fillMaxWidth()
             .border(
-                // Isabella — Sprint 4: borde verde si ya aplicó
                 width = if (offer.hasApplied) 2.dp else 1.dp,
                 color = if (offer.hasApplied) Color(0xFF1E6B3C) else AppColors.Border,
                 shape = RoundedCornerShape(14.dp)
@@ -349,7 +354,7 @@ fun OfferCard(offer: HomeViewModel.OfferUiItem, onClick: () -> Unit, modifier: M
                 }
                 Spacer(Modifier.weight(1f))
 
-                // Isabella — Sprint 4: badge "Ya aplicaste"
+                // Isabella — Sprint 3: badge "Ya aplicaste"
                 if (offer.hasApplied) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

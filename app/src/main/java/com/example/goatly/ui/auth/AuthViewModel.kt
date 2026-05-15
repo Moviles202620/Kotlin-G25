@@ -28,6 +28,20 @@ class AuthViewModel(
 
     val isLoggedIn: Boolean get() = _user.value != null
 
+    private fun isNetworkError(e: Exception): Boolean {
+        return e is java.net.UnknownHostException ||
+                e is java.net.ConnectException ||
+                e is java.net.SocketTimeoutException ||
+                e is java.io.IOException ||
+                e.cause is java.net.UnknownHostException ||
+                e.cause is java.net.ConnectException ||
+                e.cause is java.io.IOException ||
+                e.message?.contains("Unable to resolve host") == true ||
+                e.message?.contains("Failed to connect") == true ||
+                e.message?.contains("ENETUNREACH") == true ||
+                e.message?.contains("timeout") == true
+    }
+
     fun login(email: String, password: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -48,13 +62,12 @@ class AuthViewModel(
                 if (e.message == "STAFF_ROLE") {
                     Log.w("GOATLY_EVC", "login — blocked, staff role detected")
                     _loginError.value = "Esta app es solo para estudiantes. Si eres funcionario, usa la aplicación correspondiente."
-                } else if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketTimeoutException) {
+                } else if (isNetworkError(e)) {
                     // Isabella — Sprint 3: Eventual Connectivity — vista protegida
-                    // Login requires network — show specific message instead of generic error
-                    Log.e("GOATLY_EVC", "login — no network, cannot authenticate: ${e.message}")
+                    Log.e("GOATLY_EVC", "login — no network (${e::class.simpleName}): ${e.message}")
                     _loginError.value = "Para iniciar sesión, por favor conéctese a internet."
                 } else {
-                    Log.e("GOATLY_EVC", "login — unexpected error: ${e.message}")
+                    Log.e("GOATLY_EVC", "login — unexpected error (${e::class.simpleName}): ${e.message}")
                     _loginError.value = "Correo o contraseña incorrectos"
                 }
             }
@@ -78,6 +91,7 @@ class AuthViewModel(
                 val result = authRepository.registerSuspend(name, email, password, major, role)
                 if (result != null) {
                     _user.value = result
+                    // Isabella — Sprint 3: Eventual Connectivity — persist profile after register
                     TokenManager.saveUserProfile(result)
                     Log.d("GOATLY_EVC", "register — success, profile saved locally for ${result.email}")
                     onSuccess()
@@ -86,10 +100,11 @@ class AuthViewModel(
                 }
             } catch (e: Exception) {
                 // Isabella — Sprint 4: EVC — registro sin red
-                if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketTimeoutException) {
-                    Log.e("GOATLY_EVC", "register — no network: ${e.message}")
+                if (isNetworkError(e)) {
+                    Log.e("GOATLY_EVC", "register — no network (${e::class.simpleName}): ${e.message}")
                     _loginError.value = "Para crear una cuenta, por favor conéctese a internet."
                 } else {
+                    Log.e("GOATLY_EVC", "register — unexpected error (${e::class.simpleName}): ${e.message}")
                     _loginError.value = "No se pudo crear la cuenta. Intenta de nuevo."
                 }
             }
@@ -100,9 +115,6 @@ class AuthViewModel(
     // ============================================================
     // Isabella — Sprint 3: Eventual Connectivity — Session Restore
     // ============================================================
-    // If network is unavailable, restore user profile from SharedPreferences
-    // instead of clearing the token and forcing re-login.
-    // This means the student keeps access to job offers even without internet.
     fun restoreSession(onDone: () -> Unit) {
         viewModelScope.launch {
             Log.d("GOATLY_EVC", "restoreSession — attempting network restore")
@@ -120,22 +132,18 @@ class AuthViewModel(
                         isDarkMode = me.isDarkMode
                     )
                     _user.value = user
-                    // Update cached profile with fresh data from network
                     TokenManager.saveUserProfile(user)
                     Log.d("GOATLY_EVC", "restoreSession — network ok, fresh profile loaded for ${user.email}")
                 } else {
                     Log.w("GOATLY_EVC", "restoreSession — no token found, skipping")
                 }
             } catch (e: Exception) {
-                Log.e("GOATLY_EVC", "restoreSession — network failed (${e.message}), trying local profile")
-                // Isabella — Sprint 3: Eventual Connectivity — offline fallback
-                // Use locally cached profile from SharedPreferences instead of forcing re-login
+                Log.e("GOATLY_EVC", "restoreSession — network failed (${e::class.simpleName}: ${e.message}), trying local profile")
                 val cachedUser = TokenManager.getUserProfile()
                 if (cachedUser != null) {
                     _user.value = cachedUser
                     Log.d("GOATLY_EVC", "restoreSession — offline fallback ok, session restored for ${cachedUser.email}")
                 } else {
-                    // No cached profile and no network — force re-login as last resort
                     Log.w("GOATLY_EVC", "restoreSession — no cached profile found, clearing token and forcing re-login")
                     TokenManager.clear()
                 }
@@ -143,4 +151,6 @@ class AuthViewModel(
             onDone()
         }
     }
+
+    fun clearLoginError() { _loginError.value = null }
 }

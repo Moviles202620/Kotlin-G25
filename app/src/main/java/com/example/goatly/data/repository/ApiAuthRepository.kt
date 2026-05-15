@@ -33,8 +33,16 @@ class ApiAuthRepository(private val api: ApiService) : AuthRepository {
             )
             _currentUser
         } catch (e: Exception) {
+            // Relanzar STAFF_ROLE para que AuthViewModel lo maneje
             if (e.message == "STAFF_ROLE") throw e
+            // Credenciales incorrectas — retornar null
             if (e is HttpException && e.code() == 401) return null
+            // Isabella — Sprint 3: EVC — relanzar errores de red para que AuthViewModel
+            // muestre el mensaje correcto en vez de "credenciales incorrectas"
+            if (isNetworkException(e)) {
+                android.util.Log.e("GoatlyNet", "LOGIN: network error, rethrowing: ${e::class.simpleName}: ${e.message}")
+                throw e
+            }
             android.util.Log.e("GoatlyNet", "LOGIN: FAILED: ${e::class.simpleName}: ${e.message}", e)
             null
         }
@@ -64,9 +72,29 @@ class ApiAuthRepository(private val api: ApiService) : AuthRepository {
             )
             _currentUser
         } catch (e: Exception) {
+            // Isabella — Sprint 4: EVC — relanzar errores de red para que AuthViewModel
+            // muestre el mensaje correcto en registro sin internet
+            if (isNetworkException(e)) {
+                android.util.Log.e("GoatlyNet", "REGISTER: network error, rethrowing: ${e::class.simpleName}: ${e.message}")
+                throw e
+            }
             android.util.Log.e("GoatlyNet", "REGISTER: FAILED: ${e::class.simpleName}: ${e.message}", e)
             null
         }
+    }
+
+    private fun isNetworkException(e: Exception): Boolean {
+        return e is java.net.UnknownHostException ||
+                e is java.net.ConnectException ||
+                e is java.net.SocketTimeoutException ||
+                e is java.io.IOException ||
+                e.cause is java.net.UnknownHostException ||
+                e.cause is java.net.ConnectException ||
+                e.cause is java.io.IOException ||
+                e.message?.contains("Unable to resolve host") == true ||
+                e.message?.contains("Failed to connect") == true ||
+                e.message?.contains("ENETUNREACH") == true ||
+                e.message?.contains("timeout") == true
     }
 
     override fun logout() {

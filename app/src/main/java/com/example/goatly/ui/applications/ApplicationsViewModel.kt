@@ -99,14 +99,6 @@ class ApplicationsViewModel : ViewModel() {
     private val _avgPerSemester = MutableStateFlow<List<AvgPerSemesterItem>>(emptyList())
     val avgPerSemester: StateFlow<List<AvgPerSemesterItem>> = _avgPerSemester.asStateFlow()
 
-    // Semestre del usuario logueado — se setea desde StudentShell
-    private val _userSemester = MutableStateFlow(0)
-    val userSemester: StateFlow<Int> = _userSemester.asStateFlow()
-
-    fun setUserSemester(semester: Int) {
-        _userSemester.value = semester
-    }
-
     // Cache de todas las aplicaciones para filtrado offline sin reset
     private val _allApplicationsCache = MutableStateFlow<List<MyApplicationItemDto>>(emptyList())
 

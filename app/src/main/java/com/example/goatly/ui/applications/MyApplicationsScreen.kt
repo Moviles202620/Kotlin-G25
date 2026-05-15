@@ -45,7 +45,6 @@ fun MyApplicationsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val topOffers by appsViewModel.topOffers.collectAsState()
     val avgPerSemester by appsViewModel.avgPerSemester.collectAsState()
-    val userSemester by appsViewModel.userSemester.collectAsState()
 
     // Carga inicial — load() ya incluye top offers en paralelo
     LaunchedEffect(Unit) {
@@ -120,10 +119,7 @@ fun MyApplicationsScreen(
 
                     // BQ Sprint 3
                     if (avgPerSemester.isNotEmpty()) {
-                        val userItem = avgPerSemester.find { it.semester == userSemester }
-                        if (userItem != null) {
-                            item { UserSemesterCard(item = userItem) }
-                        }
+                        item { AvgPerSemesterCard(avgPerSemester) }
                     }
 
                     // BQ3: rating breakdown (solo si hay aplicaciones completadas)

@@ -144,8 +144,12 @@ class ApplicationsViewModel : ViewModel() {
         // FIX bug reset: si ya hay datos cargados y solo cambia el filtro,
         // aplicar el filtro localmente sin mostrar Loading
         val currentApps = _allApplicationsCache.value
-        if (statusFilter != null && currentApps.isNotEmpty()) {
-            val filtered = currentApps.filter { it.status == statusFilter }
+        if (currentApps.isNotEmpty()) {
+            val filtered = if (statusFilter != null) {
+                currentApps.filter { it.status == statusFilter }
+            } else {
+                currentApps
+            }
             val stats = ApplicationStatsDto(
                 total = filtered.size,
                 pending = filtered.count { it.status == "pending" },
